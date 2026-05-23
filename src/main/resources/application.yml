@@ -1,0 +1,22 @@
+server:
+  port: 8080
+  servlet:
+    session:
+      timeout: 30m   # 本地会话超时 30 分钟
+
+spring:
+  application:
+    name: demo3-oauth2-sso-client
+
+duca:
+  client-id: DrBIoSS6Onqz8Ulbd0Owa1bpXAM0uG6s
+  client-secret: c0wk4Myy8FmWa2NVc0EPRrOJbPmmDZzfkO82i74c
+  # 启动时从此地址拉取 OIDC 配置，自动发现所有端点/认证方式/scope
+  discovery-url: https://ducafront.multimediapress.cn/duca/.well-known/DrBIoSS6Onqz8Ulbd0Owa1bpXAM0uG6s/openid-configurations
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.security.oauth2.client: TRACE
+    org.springframework.web.client.RestTemplate: DEBUG

@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>DUCA SSO 客户端演示</title>
+    <style>
+        :root {
+            --primary: #1976d2; --primary-dark: #1565c0;
+            --bg: #f0f2f5; --card-bg: #fff; --text: #333; --text-secondary: #666;
+            --border: #e0e0e0; --success: #2e7d32; --error: #c62828; --warning: #ef6c00;
+            --radius: 8px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text); min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a237e, #283593);
+            color: white; padding: 16px 32px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 20px; }
+        .header .user-tag {
+            display: flex; align-items: center; gap: 12px;
+            font-size: 14px;
+        }
+        .header .logout-btn {
+            padding: 6px 16px; background: rgba(255,255,255,0.2);
+            color: white; border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px; cursor: pointer; font-size: 13px;
+        }
+        .header .logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 32px; }
+
+        /* Tab Nav */
+        .tab-nav {
+            display: flex; flex-wrap: wrap; gap: 6px;
+            margin-bottom: 20px; border-bottom: 2px solid var(--border);
+            padding-bottom: 0;
+        }
+        .tab-btn {
+            padding: 10px 18px; background: transparent;
+            border: none; cursor: pointer; font-size: 13px; color: var(--text-secondary);
+            border-radius: var(--radius) var(--radius) 0 0;
+            position: relative; top: 2px; white-space: nowrap;
+        }
+        .tab-btn:hover { color: var(--primary); background: rgba(25,118,210,0.05); }
+        .tab-btn.active {
+            color: var(--primary); font-weight: 600;
+            border-bottom: 3px solid var(--primary);
+            background: var(--card-bg);
+        }
+
+        /* Cards */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        .card {
+            background: var(--card-bg); border-radius: var(--radius);
+            padding: 24px; margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card h3 { margin-bottom: 12px; color: var(--text); font-size: 16px; }
+        .card p { color: var(--text-secondary); font-size: 13px; margin-bottom: 12px; line-height: 1.6; }
+
+        /* Forms */
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); text-transform: uppercase; }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+            border-radius: 4px; font-size: 13px; font-family: inherit;
+        }
+        .form-row { display: flex; gap: 12px; }
+        .form-row .form-group { flex: 1; }
+        .btn {
+            padding: 8px 20px; border: none; border-radius: 4px;
+            cursor: pointer; font-size: 13px; font-weight: 500;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-outline {
+            background: transparent; border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+        .btn-outline:hover { background: rgba(25,118,210,0.08); }
+        .btn-danger { background: var(--error); color: white; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
+
+        /* Response area */
+        .response {
+            background: #1e1e1e; color: #d4d4d4; border-radius: 6px;
+            padding: 16px; margin-top: 12px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 12px; max-height: 400px; overflow: auto; white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .response.error { border-left: 3px solid var(--error); }
+        .response.success { border-left: 3px solid var(--success); }
+        .loading { opacity: 0.6; pointer-events: none; }
+
+        /* Status badges */
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 11px; font-weight: 600;
+        }
+        .badge-ok { background: #e8f5e9; color: #2e7d32; }
+        .badge-warn { background: #fff3e0; color: #ef6c00; }
+        .badge-info { background: #e3f2fd; color: #1565c0; }
+
+        /* Two column layout for some panels */
+        .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .cols-2 { grid-template-columns: 1fr; } }
+
+        .discovery-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .discovery-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+        .discovery-table td:first-child { font-weight: 600; color: var(--text-secondary); width: 260px; }
+
+        /* ─── Open API: Postman-style Layout ─── */
+        .openapi-layout { display: flex; height: calc(100vh - 140px); min-height: 600px; }
+        .openapi-sidebar {
+            width: 270px; min-width: 270px; background: #fafbfc; border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .openapi-sidebar-header {
+            padding: 14px 16px; font-weight: 700; font-size: 14px;
+            border-bottom: 1px solid var(--border); color: var(--text);
+        }
+        .openapi-sidebar-search { padding: 10px 12px; }
+        .openapi-sidebar-search input {
+            width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 12px; outline: none;
+        }
+        .openapi-sidebar-search input:focus { border-color: var(--primary); }
+        #openapi-sidebar-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
+        .openapi-cat-header {
+            display: flex; align-items: center; gap: 6px;
+            padding: 10px 16px; cursor: pointer; font-size: 13px; font-weight: 600;
+            color: var(--text); user-select: none; border-bottom: 1px solid #f0f0f0;
+        }
+        .openapi-cat-header:hover { background: #f0f0f0; }
+        .openapi-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .openapi-cat-arrow { font-size: 10px; margin-left: auto; transition: transform 0.2s; }
+        .openapi-cat-header.collapsed .openapi-cat-arrow { transform: rotate(-90deg); }
+        .openapi-api-items { overflow: hidden; }
+        .openapi-api-items.collapsed { display: none; }
+        .openapi-api-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 16px 8px 32px; cursor: pointer; font-size: 12px;
+            color: var(--text-secondary); transition: all 0.1s;
+        }
+        .openapi-api-item:hover { background: #e3f2fd; color: var(--text); }
+        .openapi-api-item.active { background: #e3f2fd; color: var(--primary); font-weight: 600; }
+        .openapi-api-item .api-method {
+            display: inline-block; width: 36px; text-align: center; padding: 2px 0;
+            border-radius: 3px; font-size: 10px; font-weight: 700; font-family: monospace; flex-shrink: 0;
+        }
+        .openapi-api-item .api-method.get { background: #e3f2fd; color: #1565c0; }
+        .openapi-api-item .api-method.post { background: #e8f5e9; color: #2e7d32; }
+        .openapi-api-item .api-method.put { background: #fff3e0; color: #ef6c00; }
+        .openapi-api-item .api-method.del { background: #fce4ec; color: #c62828; }
+        .openapi-api-item .api-item-path { font-family: monospace; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Right Main */
+        .openapi-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .openapi-placeholder {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; font-size: 15px;
+        }
+        /* Request Bar */
+        .openapi-request-bar {
+            display: flex; gap: 0; padding: 12px 16px; background: #fff;
+            border-bottom: 1px solid var(--border); align-items: center;
+        }
+        .openapi-method-select {
+            padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px 0 0 6px;
+            font-size: 13px; font-weight: 700; font-family: monospace;
+            background: #f5f5f5; outline: none; min-width: 80px;
+        }
+        .openapi-url-bar {
+            flex: 1; display: flex; align-items: center;
+            border: 1px solid #ddd; border-left: none; border-radius: 0 6px 6px 0;
+            overflow: hidden; background: #fff;
+        }
+        .openapi-base-url {
+            padding: 8px 12px; font-size: 12px; font-family: monospace;
+            color: var(--text-secondary); background: #fafafa; border-right: 1px solid #eee;
+            white-space: nowrap;
+        }
+        .openapi-path-input {
+            flex: 1; border: none; outline: none; padding: 8px 12px;
+            font-size: 13px; font-family: monospace; color: var(--text);
+        }
+        .openapi-send-btn {
+            padding: 9px 24px; background: var(--primary); color: #fff;
+            border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+            font-weight: 600; margin-left: 10px; white-space: nowrap;
+        }
+        .openapi-send-btn:hover { background: var(--primary-dark); }
+        /* Tabs */
+        .openapi-tabs {
+            display: flex; gap: 0; padding: 0 16px; background: #fff;
+            border-bottom: 1px solid var(--border);
+        }
+        .openapi-tab {
+            padding: 10px 16px; background: none; border: none; cursor: pointer;
+            font-size: 13px; color: var(--text-secondary);
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+        }
+        .openapi-tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+        .openapi-panels { flex: 1; overflow-y: auto; padding: 16px; background: #fafbfc; }
+        .openapi-panel { display: none; }
+        .openapi-panel.active { display: block; }
+        .openapi-section-title {
+            font-size: 12px; font-weight: 700; color: var(--text-secondary);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+        }
+        .openapi-params-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+        .openapi-params-grid .form-group { min-width: 180px; flex: 1; }
+        .openapi-body-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .openapi-headers-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .openapi-headers-table td {
+            padding: 8px 12px; border-bottom: 1px solid #eee;
+            font-family: monospace; font-size: 12px;
+        }
+        .openapi-headers-table td:first-child { font-weight: 600; color: var(--text-secondary); }
+        /* Docs table */
+        .openapi-docs-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+        .openapi-docs-table th {
+            text-align: left; padding: 8px 10px; background: #f0f0f0;
+            font-weight: 600; border-bottom: 2px solid #ddd; font-size: 11px;
+            text-transform: uppercase; letter-spacing: 0.3px;
+        }
+        .openapi-docs-table td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+        .openapi-docs-table tr:hover td { background: #f9f9f9; }
+        .openapi-badge-req { color: #c62828; font-size: 10px; font-weight: 700; }
+        /* Response */
+        .openapi-response-section { border-top: 1px solid var(--border); background: #fff; }
+        .openapi-response-header {
+            display: flex; align-items: center; padding: 10px 16px;
+            border-bottom: 1px solid #eee; font-size: 13px;
+        }
+        .openapi-response-body {
+            padding: 16px; min-height: 150px; max-height: 350px; overflow: auto;
+            background: #1e1e1e; color: #d4d4d4; font-family: monospace;
+            font-size: 12px; white-space: pre-wrap; word-break: break-all; display: none;
+        }
+        .openapi-response-body.error { border-left: 3px solid var(--error); }
+        .openapi-response-body.success { border-left: 3px solid var(--success); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>DUCA SSO 客户端演示面板</h1>
+    <div class="user-tag">
+        <span th:if="${user}" th:text="'用户: ' + ${user.fullName}">用户</span>
+        <form th:action="@{/logout}" method="post" style="margin:0;">
+            <button type="submit" class="logout-btn">退出登录</button>
+        </form>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ═══ Tab Navigation ═══ -->
+    <div class="tab-nav" id="tabNav">
+        <button class="tab-btn active" data-tab="tab-overview">概览</button>
+        <button class="tab-btn" data-tab="tab-discovery">服务发现</button>
+        <button class="tab-btn" data-tab="tab-tokens">令牌操作</button>
+        <button class="tab-btn" data-tab="tab-jwt">JWT解析</button>
+        <button class="tab-btn" data-tab="tab-password">密码模式</button>
+        <button class="tab-btn" data-tab="tab-phone">手机验证码</button>
+        <button class="tab-btn" data-tab="tab-device">设备授权</button>
+        <button class="tab-btn" data-tab="tab-pkce">PKCE</button>
+        <button class="tab-btn" data-tab="tab-wechat">微信扫码</button>
+        <button class="tab-btn" data-tab="tab-workwx">企微扫码</button>
+        <button class="tab-btn" data-tab="tab-wxoffical">微信服务号</button>
+        <button class="tab-btn" data-tab="tab-thirduid">第三方UID</button>
+        <button class="tab-btn" data-tab="tab-par">PAR</button>
+        <button class="tab-btn" data-tab="tab-tokenex">令牌交换</button>
+        <button class="tab-btn" data-tab="tab-dpop">DPoP</button>
+        <button class="tab-btn" data-tab="tab-logout">统一退出</button>
+        <button class="tab-btn" data-tab="tab-openapi">Open API</button>
+    </div>
+
+    <!-- ═══ Tab 0: Overview ═══ -->
+    <div class="tab-panel active" id="tab-overview">
+        <div class="card">
+            <h3>当前登录用户</h3>
+            <table class="discovery-table">
+                <tr><td>Subject (sub)</td><td th:text="${user?.subject}">-</td></tr>
+                <tr><td>Name</td><td th:text="${user?.fullName}">-</td></tr>
+                <tr><td>Email</td><td th:text="${user?.email}">-</td></tr>
+                <tr><td>Issuer</td><td th:text="${user?.issuer}">-</td></tr>
+            </table>
+            <button class="btn btn-primary" style="margin-top:12px" onclick="apiCall('GET','/api/userinfo','tab-overview')">从 UserInfo 端点获取</button>
+            <div id="resp-tab-overview" class="response" style="display:none"></div>
+        </div>
+        <div class="cols-2">
+            <div class="card">
+                <h3>授权码模式 <span class="badge badge-ok">当前模式</span></h3>
+                <p>标准 OAuth2 Authorization Code Flow，服务端安全保存 client_secret。Spring Security 已自动完成完整流程。</p>
+                <p>流程: 重定向到 DUCA → 用户登录 → 回调 /login/oauth2/code/duca → 后端换取 token → 建立本地会话</p>
+            </div>
+            <div class="card">
+                <h3>OIDC 服务发现</h3>
+                <p>启动时从 <code style="background:#eee;padding:1px 4px;border-radius:2px;">/.well-known/{client_id}/openid-configuration</code> 自动拉取所有端点配置，零硬编码。</p>
+                <button class="btn btn-outline" onclick="apiCall('GET','/api/duca/discovery','tab-overview')">查看配置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 12: Service Discovery ═══ -->
+    <div class="tab-panel" id="tab-discovery">
+        <div class="card">
+            <h3>OIDC 服务发现配置</h3>
+            <p>从 <code>/.well-known/{client_id}/openid-configuration</code> 自动拉取，零硬编码。</p>
+            <button class="btn btn-primary" onclick="loadDiscovery()">加载配置</button>
+            <div id="resp-tab-discovery" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 1: Token Operations ═══ -->
+    <div class="tab-panel" id="tab-tokens">
+        <div class="cols-2">
+            <div class="card">
+                <h3>Token 自省 (Introspect)</h3>
+                <p>验证 access_token 是否有效。不透明令牌必须通过此端点验证。</p>
+                <button class="btn btn-primary" onclick="apiCall('POST','/api/token/introspect','tab-tokens')">自省当前 Token</button>
+            </div>
+            <div class="card">
+                <h3>刷新 Token (Refresh)</h3>
+                <p>access_token 过期后使用 refresh_token 获取新令牌，无需重新登录。</p>
+                <button class="btn btn-primary" onclick="apiCall('POST','/api/token/refresh','tab-tokens')">刷新 Token</button>
+            </div>
+            <div class="card">
+                <h3>撤销 Token (Revoke)</h3>
+                <p>主动撤销令牌，用户登出或令牌泄露时使用。</p>
+                <div class="form-group"><label>Token 类型</label>
+                    <select id="revoke-type"><option value="access_token">access_token</option><option value="refresh_token">refresh_token</option></select>
+                </div>
+                <button class="btn btn-danger" onclick="revokeToken()">撤销 Token</button>
+            </div>
+            <div class="card">
+                <h3>当前用户详情</h3>
+                <button class="btn btn-primary" onclick="apiCall('GET','/api/auth/current','tab-tokens')">获取详情</button>
+            </div>
+        </div>
+        <div id="resp-tab-tokens" class="response" style="display:none"></div>
+    </div>
+
+    <!-- ═══ Tab: JWT Decode ═══ -->
+    <div class="tab-panel" id="tab-jwt">
+        <div class="card">
+            <h3>JWT 令牌解析</h3>
+            <p>解析 access_token 或 id_token 的 Header、Payload、Signature。纯前端解码，令牌不会发送到服务器。</p>
+            <div class="form-group"><label>粘贴 JWT 令牌</label><textarea id="jwt-input" rows="3" placeholder="粘贴 access_token 或 id_token"></textarea></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn btn-primary" onclick="decodeJwt()">解析</button>
+                <button class="btn btn-outline" onclick="fillJwtAccessToken()">填入 access_token</button>
+                <button class="btn btn-outline" onclick="fillJwtIdToken()">填入 id_token</button>
+            </div>
+        </div>
+        <div class="card" id="jwt-header-card" style="display:none;">
+            <h4>Header <span style="font-weight:normal;font-size:12px;color:var(--text-secondary);">（算法与类型）</span></h4>
+            <pre id="jwt-header" class="response" style="display:block;margin:0;"></pre>
+        </div>
+        <div class="card" id="jwt-payload-card" style="display:none;">
+            <h4>Payload <span style="font-weight:normal;font-size:12px;color:var(--text-secondary);">（声明内容）</span></h4>
+            <pre id="jwt-payload" class="response" style="display:block;margin:0;"></pre>
+        </div>
+        <div class="card" id="jwt-sig-card" style="display:none;">
+            <h4>Signature <span style="font-weight:normal;font-size:12px;color:var(--text-secondary);">（签名字节）</span></h4>
+            <pre id="jwt-sig" class="response" style="display:block;margin:0;"></pre>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 2: Password Mode ═══ -->
+    <div class="tab-panel" id="tab-password">
+        <div class="card">
+            <h3>方式四：密码模式 (Password Grant)</h3>
+            <p>用户直接提供用户名密码换取令牌。仅适用于完全受信任的第一方应用。<strong>注意：密码模式下需填入在 DUCA 平台注册的有效用户凭据。</strong></p>
+            <div class="form-row">
+                <div class="form-group"><label>用户名</label><input type="text" id="pw-user" placeholder="输入 DUCA 用户名"></div>
+                <div class="form-group"><label>密码</label><input type="password" id="pw-pass" placeholder="输入密码"></div>
+            </div>
+            <button class="btn btn-primary" onclick="passwordLogin()">登录</button>
+            <div id="resp-tab-password" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 3: Phone Mode ═══ -->
+    <div class="tab-panel" id="tab-phone">
+        <div class="card">
+            <h3>方式五：手机验证码登录</h3>
+            <p style="margin-bottom:4px;">支持两种登录方式：仅手机号 / 手机号+短信验证码</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;">
+                流程：获取图形验证码 → 输入手机号+图形码 → 获取短信验证码 → 登录
+            </p>
+            <!-- 图形验证码 -->
+            <div class="form-group">
+                <label>图形验证码</label>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <img id="captcha-img" src="" alt="图形验证码" style="height:38px;border:1px solid #ddd;border-radius:4px;cursor:pointer;" title="点击刷新" onclick="loadCaptcha()">
+                    <button type="button" class="btn btn-outline" onclick="loadCaptcha()" style="font-size:12px;padding:6px 12px;">刷新</button>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>手机号</label><input type="text" id="phone-num" placeholder="138xxxx1234"></div>
+                <div class="form-group"><label>图形码</label><input type="text" id="phone-captcha" placeholder="输入图形验证码"></div>
+            </div>
+            <div style="margin-bottom:12px;">
+                <button class="btn btn-outline" onclick="sendSms()">获取短信验证码</button>
+            </div>
+            <!-- 短信验证码 + 登录 -->
+            <div class="form-group"><label>短信验证码</label><input type="text" id="phone-code" placeholder="输入短信验证码（方式二必填）"></div>
+            <div style="display:flex;gap:10px;">
+                <button class="btn btn-outline" onclick="phoneLoginOnly()">方式一：仅手机号登录</button>
+                <button class="btn btn-primary" onclick="phoneLogin()">方式二：验证码登录</button>
+            </div>
+            <div id="resp-tab-phone" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 4: Device Auth ═══ -->
+    <div class="tab-panel" id="tab-device">
+        <div class="card">
+            <h3>方式三：设备授权模式 (Device Code / RFC 8628)</h3>
+            <p>适用于 TV、CLI、物联网设备等没有浏览器的场景。</p>
+
+            <h4 style="margin-top:16px;">完整流程</h4>
+            <ol style="margin:8px 0 16px 20px;font-size:14px;color:var(--text-secondary);line-height:1.8;">
+                <li><b>获取 device_code</b> — 点击下方按钮，DUCA 返回 device_code、user_code、verification_uri</li>
+                <li><b>用户在手机/其他设备上打开验证链接</b>，输入 user_code 或直接访问完整链接完成授权</li>
+                <li><b>轮询令牌</b> — 设备持续轮询 token endpoint，直到用户确认授权后返回 access_token / refresh_token</li>
+            </ol>
+
+            <button class="btn btn-primary" onclick="deviceAuth()">1. 获取 device_code</button>
+            <div id="device-step1" style="display:none;margin-top:12px;">
+                <div class="form-group"><label>device_code</label><input type="text" id="device-code" readonly style="background:#f5f5f5;"></div>
+                <div class="form-group"><label>user_code（用户在授权页面输入此码）</label><input type="text" id="device-user-code" readonly style="background:#f5f5f5;font-weight:bold;font-size:18px;letter-spacing:2px;"></div>
+                <div class="form-group"><label>verification_uri（用户打开此链接完成授权）</label><input type="text" id="device-verify-uri" readonly style="background:#f5f5f5;"></div>
+                <div class="form-group"><label>verification_uri_complete（一键直达，附带 user_code）</label><input type="text" id="device-verify-uri-complete" readonly style="background:#f5f5f5;"></div>
+                <a id="device-verify-link" href="#" target="_blank" style="display:inline-block;margin-bottom:12px;color:var(--accent);font-size:14px;">🔗 在新窗口打开验证链接 →</a>
+            </div>
+
+            <button class="btn btn-primary" id="device-poll-btn" onclick="devicePoll()" style="margin-top:16px;">2. 轮询令牌</button>
+            <p style="margin-top:6px;font-size:12px;color:var(--text-secondary);">轮询间隔建议: 5秒。返回 authorization_pending 表示用户尚未确认，slow_down 需增加间隔，expired_token 表示已过期需重新获取。</p>
+            <div id="resp-tab-device" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 5: PKCE ═══ -->
+    <div class="tab-panel" id="tab-pkce">
+        <div class="card">
+            <h3>方式二：授权码 + PKCE (Proof Key for Code Exchange)</h3>
+            <p>PKCE 是授权码流程的安全增强，防止授权码拦截攻击。客户端生成随机 code_verifier，用 SHA256 哈希后得到 code_challenge。授权时发送 challenge，换令牌时发送 verifier 自证身份 — <b>不需要 client_secret</b>。</p>
+
+            <h4 style="margin-top:16px;">完整流程</h4>
+            <ol style="margin:8px 0 16px 20px;font-size:14px;color:var(--text-secondary);line-height:1.8;">
+                <li><b>生成 PKCE 参数</b> — 点击下方按钮生成 code_verifier 和 code_challenge</li>
+                <li><b>发起授权请求</b> — 携带 code_challenge 和 code_challenge_method=S256 跳转 DUCA 授权页</li>
+                <li><b>用户登录授权</b> — DUCA 验证用户身份后，带 authorization_code 重定向回回调地址</li>
+                <li><b>用 code_verifier 换令牌</b> — 回调页自动用 code + code_verifier 到 token endpoint 换取 access_token / id_token</li>
+            </ol>
+
+            <div class="form-group">
+                <label>Code Verifier（43 字符随机串，Base64URL）</label>
+                <div class="form-row">
+                    <input type="text" id="pkce-verifier" readonly style="flex:1;background:#f5f5f5;" placeholder="点击「生成」按钮创建">
+                    <button class="btn btn-outline" onclick="generatePKCE()">生成</button>
+                </div>
+            </div>
+            <div class="form-group"><label>Code Challenge (SHA256 → Base64URL)</label><input type="text" id="pkce-challenge" readonly style="background:#f5f5f5;"></div>
+            <div class="form-group">
+                <label>授权请求 URL <span style="font-size:12px;color:var(--text-secondary);">（自动拼接，code_challenge 入参）</span></label>
+                <div class="form-row">
+                    <input type="text" id="pkce-auth-url" readonly style="flex:1;background:#f5f5f5;font-size:12px;font-family:monospace;">
+                    <button class="btn btn-outline" onclick="copyPKCEUrl()">复制</button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="startPKCEFlow()" id="pkce-start-btn" disabled>2. 发起 PKCE 授权（新窗口打开）</button>
+            <p style="margin-top:6px;font-size:12px;color:var(--text-secondary);">
+                callback 地址: <code>/api/auth/pkce/callback</code> (已配置为 permitAll)<br>
+                回调页将自动从 sessionStorage 读取 code_verifier 并换取令牌。
+            </p>
+            <div id="resp-tab-pkce" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 6: WeChat QR ═══ -->
+    <div class="tab-panel" id="tab-wechat">
+        <div class="card">
+            <h3>方式六：微信扫码登录</h3>
+            <p>DUCA 返回微信开放平台的二维码 URL。用户用微信扫码后，微信回调 DUCA 完成认证。</p>
+            <p><span class="badge badge-warn">需要 DUCA 平台已配置微信 AppID / 微信开放平台</span></p>
+            <button class="btn btn-primary" onclick="fetchWechatQrcode()">1. 获取微信二维码</button>
+
+            <div id="wechat-qr-section" style="display:none;margin-top:16px;text-align:center;">
+                <p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">用微信扫描下方二维码登录</p>
+                <img id="wechat-qr-img" style="display:block;max-width:250px;max-height:250px;margin:0 auto;border:1px solid #eee;border-radius:8px;padding:8px;" alt="微信二维码">
+                <p style="margin-top:8px;font-size:12px;"><a id="wechat-qr-link" href="#" target="_blank" style="color:var(--accent);">或直接打开微信授权链接 →</a></p>
+            </div>
+            <div id="resp-tab-wechat" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 7: Work WeChat QR ═══ -->
+    <div class="tab-panel" id="tab-workwx">
+        <div class="card">
+            <h3>方式七：企业微信扫码登录</h3>
+            <p>DUCA 返回企业微信的二维码 URL。员工用企业微信扫码后，企业微信回调 DUCA 完成认证。</p>
+            <p><span class="badge badge-warn">需要 DUCA 平台已配置企业微信(CorpID/AgentID)</span></p>
+            <button class="btn btn-primary" onclick="fetchWorkwxQrcode()">1. 获取企业微信二维码</button>
+
+            <div id="workwx-qr-section" style="display:none;margin-top:16px;text-align:center;">
+                <p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">用企业微信扫描下方二维码登录</p>
+                <img id="workwx-qr-img" style="display:block;max-width:250px;max-height:250px;margin:0 auto;border:1px solid #eee;border-radius:8px;padding:8px;" alt="企业微信二维码">
+                <p style="margin-top:8px;font-size:12px;"><a id="workwx-qr-link" href="#" target="_blank" style="color:var(--accent);">或直接打开企业微信授权链接 →</a></p>
+            </div>
+            <div id="resp-tab-workwx" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 7-b: WeChat Official Account ═══ -->
+    <div class="tab-panel" id="tab-wxoffical">
+        <div class="card">
+            <h3>方式七-b：微信服务号网页授权登录</h3>
+            <p>在微信服务号（公众号）的网页中，通过微信 OAuth2 网页授权获取用户信息。与方式六（微信开放平台扫码）不同：此方式<strong>仅在微信内置浏览器中可用</strong>。</p>
+
+            <h4 style="margin-top:16px;">完整流程</h4>
+            <ol style="margin:8px 0 16px 20px;font-size:14px;color:var(--text-secondary);line-height:1.8;">
+                <li><b>获取授权 URL</b> — 点击下方按钮，DUCA 返回微信 OAuth 网页授权地址</li>
+                <li><b>在微信中打开</b> — 用户用微信扫码或直接在微信浏览器中打开授权链接</li>
+                <li><b>用户授权</b> — 微信弹出授权页面（scope=snsapi_userinfo），用户点击"确认登录"</li>
+                <li><b>微信回调 DUCA</b> — 微信携带 code 重定向到 DUCA callback，DUCA 换取 access_token 并完成登录</li>
+            </ol>
+
+            <p><span class="badge badge-warn">需要 DUCA 平台已配置微信服务号 AppID / 回调域名</span></p>
+            <button class="btn btn-primary" onclick="fetchWxOfficalQrcode()">1. 获取微信服务号授权 URL</button>
+
+            <div id="wxoffical-qr-section" style="display:none;margin-top:16px;text-align:center;">
+                <p style="font-size:14px;color:var(--text-secondary);margin-bottom:8px;">
+                    ⚠️ 此链接<strong>仅限微信内打开</strong>。请用微信扫描下方二维码，或复制链接发送到微信中打开。
+                </p>
+                <img id="wxoffical-qr-img" style="display:block;max-width:250px;max-height:250px;margin:0 auto;border:1px solid #eee;border-radius:8px;padding:8px;" alt="微信服务号授权链接二维码">
+                <p style="margin-top:8px;font-size:12px;color:var(--text-secondary);">
+                    scope: <code>snsapi_userinfo</code> (弹出授权页，获取昵称/头像)<br>
+                    回调后 DUCA 用 code 换取 access_token + openid，完成用户认证。
+                </p>
+            </div>
+            <div id="resp-tab-wxoffical" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 8: Third-party UID ═══ -->
+    <div class="tab-panel" id="tab-thirduid">
+        <div class="card">
+            <h3>方式八：第三方 UID 登录</h3>
+            <p>已拥有独立用户体系的外部系统，通过已有的用户 ID 直接换取 SSO 令牌。如果 userName 对应的 DMS 用户不存在，DUCA 会自动创建。</p>
+            <p><span class="badge badge-warn">thirdUserId 和 userName 均为必填</span></p>
+            <div class="form-group"><label>thirdUserId（第三方系统用户 ID，必填）</label><input type="text" id="third-uid" placeholder="第三方系统的用户唯一标识"></div>
+            <div class="form-group"><label>userName（DUCA 用户名，必填）</label><input type="text" id="third-userName" placeholder="新用户或已有用户名"></div>
+            <button class="btn btn-primary" onclick="thirdUidLogin()">换取令牌</button>
+            <div id="resp-tab-thirduid" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 9: PAR ═══ -->
+    <div class="tab-panel" id="tab-par">
+        <div class="card">
+            <h3>方式十：PAR (Pushed Authorization Request / RFC 9126)</h3>
+            <p>将授权参数（scope、redirect_uri 等）通过后端 POST 推送到 DUCA 的 PAR 端点，获取一个短时效的 <code>request_uri</code>。然后用这个 request_uri 发起授权 — 请求参数不会暴露在 URL 中，且支持预校验。</p>
+
+            <h4 style="margin-top:16px;">完整流程</h4>
+            <ol style="margin:8px 0 16px 20px;font-size:14px;color:var(--text-secondary);line-height:1.8;">
+                <li><b>推送授权参数</b> — 将 redirect_uri、scope 等 POST 到 DUCA PAR 端点</li>
+                <li><b>获取 request_uri</b> — DUCA 返回 <code>request_uri</code>（形如 urn:ietf:params:oauth:request_uri:xxx）和 <code>expires_in</code></li>
+                <li><b>发起授权</b> — 跳转 authorize 端点，只携带 <code>request_uri</code> 和 <code>client_id</code>，无需其他参数</li>
+                <li><b>用户授权 → 标准 code 回调</b></li>
+            </ol>
+
+            <div class="form-group"><label>Redirect URI（回调到 PAR 专用 handler）</label><input type="text" id="par-redirect" value="http://localhost:8080/api/auth/par/callback"></div>
+            <button class="btn btn-primary" onclick="doPar()">1. 推送授权请求 → 获取 request_uri</button>
+
+            <div id="par-step2" style="display:none;margin-top:12px;">
+                <div class="form-group"><label>request_uri</label><input type="text" id="par-request-uri" readonly style="background:#f5f5f5;font-family:monospace;"></div>
+                <div class="form-group"><label>expires_in (秒)</label><input type="text" id="par-expires" readonly style="background:#f5f5f5;width:120px;"></div>
+                <div class="form-group">
+                    <label>授权 URL（只用 request_uri，参数不再暴露）</label>
+                    <div class="form-row">
+                        <input type="text" id="par-auth-url" readonly style="flex:1;background:#f5f5f5;font-size:12px;font-family:monospace;">
+                        <button class="btn btn-outline" onclick="copyParUrl()">复制</button>
+                    </div>
+                </div>
+                <a id="par-auth-link" href="#" target="_blank" style="display:inline-block;color:var(--accent);font-size:14px;">在新窗口打开 PAR 授权链接 →</a>
+            </div>
+            <div id="resp-tab-par" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 10: Token Exchange ═══ -->
+    <div class="tab-panel" id="tab-tokenex">
+        <div class="card">
+            <h3>方式十一：Token Exchange (令牌交换)</h3>
+            <p>用已有令牌换新令牌，可指定不同的 audience 和更窄的 scope。适用于微服务委托调用。</p>
+            <div class="form-group"><label>目标 Audience (目标服务的 client_id)</label><input type="text" id="te-audience" placeholder="目标服务 client_id"></div>
+            <div class="form-group"><label>Scope (收窄后的作用域，可选)</label><input type="text" id="te-scope" placeholder="如: openid"></div>
+            <button class="btn btn-primary" onclick="tokenExchange()">交换令牌</button>
+            <div id="resp-tab-tokenex" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 11: DPoP ═══ -->
+    <div class="tab-panel" id="tab-dpop">
+        <div class="card">
+            <h3>方式九：DPoP (Demonstration of Proof-of-Possession / RFC 9449)</h3>
+            <p>将 Access Token 绑定到客户端非对称密钥对。每次 API 请求都需要携带 <b>DPoP Proof JWT</b>（用私钥签名的 JWT），服务端验证后确认请求者持有私钥 — 即使令牌泄露也无法冒用。</p>
+
+            <h4 style="margin-top:16px;">完整流程</h4>
+            <ol style="margin:8px 0 16px 20px;font-size:14px;color:var(--text-secondary);line-height:1.8;">
+                <li><b>生成 RSA 密钥对</b> — 使用 Web Crypto API（浏览器内，私钥不离开客户端）</li>
+                <li><b>构建 DPoP Proof JWT</b> — 包含公钥 jwk + 请求绑定 claims（htm/htu/iat/jti）</li>
+                <li><b>发送 DPoP 绑定请求</b> — 在 DPoP HTTP Header 中携带 Proof JWT，同时携带 access_token</li>
+                <li><b>验证</b> — 服务端验证签名、重放检测、令牌绑定（ath claim）</li>
+            </ol>
+
+            <button class="btn btn-outline" onclick="generateDpopKey()">1. 生成 DPoP 密钥对 (RSA 2048)</button>
+            <div class="form-group"><label>RSA 公钥 (JWK)</label><textarea id="dpop-jwk" rows="3" readonly style="background:#f5f5f5;font-size:11px;"></textarea></div>
+
+            <div id="dpop-step2" style="display:none;">
+                <div class="form-group"><label>Access Token（用于绑定，取当前登录 token）</label><div class="form-row"><input type="text" id="dpop-at" placeholder="access_token" style="flex:1;"><button class="btn btn-outline" onclick="fillAccessToken()">填入当前 Token</button></div></div>
+                <div class="form-group"><label>目标 API URL</label><input type="text" id="dpop-url" value="/api/auth/dpop/echo"></div>
+                <button class="btn btn-primary" onclick="doDpopCall()">2. 发送 DPoP 绑定请求</button>
+            </div>
+
+            <div class="form-group" style="margin-top:12px;"><label>生成的 DPoP Proof JWT</label><textarea id="dpop-proof" rows="4" readonly style="background:#f5f5f5;font-size:11px;font-family:monospace;"></textarea></div>
+            <div id="resp-tab-dpop" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab X: Unified Logout ═══ -->
+    <div class="tab-panel" id="tab-logout">
+        <div class="card">
+            <h3>统一退出 (RP-Initiated + Back-Channel + 挤掉)</h3>
+            <p>DUCA 统一退出包含三种机制：<b>RP-Initiated Logout</b>（前端主动退出）、<b>Back-Channel Logout</b>（服务端通知退出）、<b>Concurrent Session</b>（被挤掉）。</p>
+
+            <h4 style="margin-top:16px;">退出流程架构</h4>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;">
+                    <h5 style="margin:0 0 12px 0;color:#166534;">用户主动退出</h5>
+                    <ol style="margin:0;padding-left:20px;font-size:13px;color:#334155;line-height:2;">
+                        <li>浏览器 → DUCA <code style="font-size:11px;">/logout</code></li>
+                        <li>DUCA 清除认证服务器会话</li>
+                        <li>DUCA → POST logout_token 到所有客户端的 backChannelLogoutUri</li>
+                        <li>DUCA → 302 重定向到 post_logout_redirect_uri</li>
+                        <li>客户端解析 JWT，reason=<code style="font-size:11px;">manual_logout</code></li>
+                        <li>客户端 sessionRegistry.getAllSessions() → expireNow()</li>
+                        <li>前端轮询 SessionMonitor → 检测 401</li>
+                        <li>弹出通知 "您已退出登录"</li>
+                    </ol>
+                </div>
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;">
+                    <h5 style="margin:0 0 12px 0;color:#991b1b;">被挤掉（新设备登录）</h5>
+                    <ol style="margin:0;padding-left:20px;font-size:13px;color:#334155;line-height:2;">
+                        <li>用户 B 在新设备登录同一账号</li>
+                        <li>DUCA expireNow() 旧会话</li>
+                        <li>DUCA → POST logout_token 到所有客户端的 backChannelLogoutUri</li>
+                        <li>客户端解析 JWT，reason=<code style="font-size:11px;">concurrent_login</code></li>
+                        <li>客户端 sessionRegistry.getAllSessions() → expireNow()</li>
+                        <li>前端轮询 SessionMonitor → 检测 401</li>
+                        <li>弹出通知 "您的账号已在其他地方登录"</li>
+                    </ol>
+                </div>
+            </div>
+
+            <h4 style="margin-top:16px;">1. RP-Initiated Logout（前端主动退出）</h4>
+            <p>Spring Security 通过 <code>OidcClientInitiatedLogoutSuccessHandler</code> 实现，退出后 DUCA 重定向到 <code>{baseUrl}/logged-out</code>。</p>
+            <button class="btn btn-primary" onclick="doRpLogout()">执行 RP-Initiated Logout（主动退出）</button>
+
+            <h4 style="margin-top:16px;">2. Back-Channel Logout 回调信息</h4>
+            <p>DUCA 服务端通过 <code>POST /duca/backChannelLogout</code>（permitAll）发送 logout_token JWT，客户端解析后失效本地会话。</p>
+            <p>回调端点状态：<span style="color:var(--accent);">已配置 ✓</span></p>
+            <button class="btn btn-outline" onclick="checkLogoutReason()">查询当前会话退出原因</button>
+            <div id="resp-tab-logout-reason" class="response" style="display:none;margin-top:8px;"></div>
+
+            <h4 style="margin-top:16px;">3. 模拟 Back-Channel Logout（Demo 仅演示）</h4>
+            <p>点击下方按钮模拟 DUCA 发送 back-channel logout 通知（concurrent_login 或 manual_logout）。当前会话将被立即失效，前端 SessionMonitor 检测到 401 后弹出通知。</p>
+            <div class="form-row">
+                <button class="btn btn-primary" onclick="simulateBackChannel('concurrent_login')">模拟被挤掉 (concurrent_login)</button>
+                <button class="btn btn-outline" onclick="simulateBackChannel('manual_logout')">模拟主动退出 (manual_logout)</button>
+            </div>
+
+            <h4 style="margin-top:16px;">4. Session Monitor 状态</h4>
+            <p>Session Monitor 每 30 秒轮询 <code>/api/session/check</code>，同时拦截所有 AJAX 的 401 响应检测 <code>session_expired_by_concurrent_login</code>。</p>
+            <p>状态：<span style="color:green;" id="monitor-status">● 运行中</span></p>
+            <button class="btn btn-outline" onclick="checkSessionNow()">立即检测会话状态</button>
+            <div id="resp-tab-logout-check" class="response" style="display:none;margin-top:8px;"></div>
+
+            <h4 style="margin-top:16px;">5. 退出原因对照</h4>
+            <table class="data-table" style="width:100%;margin-top:8px;font-size:13px;">
+                <tr><th>reason</th><th>含义</th><th>前端提示</th></tr>
+                <tr><td><code>manual_logout</code></td><td>用户主动退出</td><td>您已退出登录</td></tr>
+                <tr><td><code>concurrent_login</code></td><td>被其他地方登录挤掉</td><td>您的账号已在其他地方登录</td></tr>
+            </table>
+            <div id="resp-tab-logout" class="response" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab Open API ═══ -->
+    <div class="tab-panel" id="tab-openapi">
+        <div class="openapi-layout">
+            <!-- Left Sidebar -->
+            <div class="openapi-sidebar">
+                <div class="openapi-sidebar-header">DUCA Open API</div>
+                <div class="openapi-sidebar-search"><input type="text" id="openapi-search" placeholder="搜索接口..." oninput="filterApiTree()"></div>
+                <div id="openapi-sidebar-tree"></div>
+            </div>
+            <!-- Right Main -->
+            <div class="openapi-main" id="openapi-main">
+                <div class="openapi-placeholder" id="openapi-placeholder">
+                    <div style="font-size:48px;margin-bottom:12px;opacity:0.3;">◂◂</div>
+                    <p style="color:var(--text-secondary);">从左侧选择一个接口开始调试</p>
+                </div>
+                <div id="openapi-workspace" style="display:none;flex-direction:column;flex:1;">
+                    <!-- Request Bar -->
+                    <div class="openapi-request-bar">
+                        <select id="openapi-method" class="openapi-method-select">
+                            <option value="GET">GET</option><option value="POST">POST</option>
+                            <option value="PUT">PUT</option><option value="DELETE">DELETE</option>
+                        </select>
+                        <div class="openapi-url-bar">
+                            <span class="openapi-base-url" id="openapi-base-url"></span>
+                            <input type="text" id="openapi-path-input" class="openapi-path-input" placeholder="/path/{param}">
+                        </div>
+                        <button class="openapi-send-btn" onclick="callOpenApi()">发送</button>
+                    </div>
+                    <!-- Tabs -->
+                    <div class="openapi-tabs">
+                        <button class="openapi-tab active" data-panel="params">请求参数</button>
+                        <button class="openapi-tab" data-panel="headers">请求头</button>
+                        <button class="openapi-tab" data-panel="docs">接口文档</button>
+                    </div>
+                    <!-- Tab Panels -->
+                    <div class="openapi-panels">
+                        <div class="openapi-panel active" id="openapi-panel-params">
+                            <div id="openapi-params-section" style="display:none;">
+                                <div class="openapi-section-title">路径参数</div>
+                                <div id="openapi-params-fields" class="openapi-params-grid"></div>
+                            </div>
+                            <div id="openapi-body-section" style="display:none;margin-top:16px;">
+                                <div class="openapi-section-title">请求体参数</div>
+                                <div id="openapi-body-fields" class="openapi-body-grid"></div>
+                            </div>
+                            <div id="openapi-no-params" style="display:none;color:var(--text-secondary);padding:16px;font-size:13px;">此接口无参数</div>
+                        </div>
+                        <div class="openapi-panel" id="openapi-panel-headers">
+                            <table class="openapi-headers-table">
+                                <tr><td style="width:160px;">Authorization</td><td>Bearer <span style="opacity:0.5;">(当前登录 access_token，发送时自动附加)</span></td></tr>
+                                <tr><td>Content-Type</td><td>application/json</td></tr>
+                                <tr><td>Accept</td><td>application/json, application/*+json</td></tr>
+                            </table>
+                        </div>
+                        <div class="openapi-panel" id="openapi-panel-docs">
+                            <div id="openapi-docs-content" style="padding:16px;font-size:13px;"></div>
+                        </div>
+                    </div>
+                    <!-- Response -->
+                    <div class="openapi-response-section">
+                        <div class="openapi-response-header">
+                            <span style="font-weight:600;">响应</span>
+                            <span id="openapi-status" style="font-size:12px;margin-left:12px;"></span>
+                            <span id="openapi-duration" style="font-size:12px;color:var(--text-secondary);margin-left:auto;"></span>
+                        </div>
+                        <div id="resp-tab-openapi" class="openapi-response-body"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="/js/session-monitor.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var DMS = { authEndpoint: /*[[${authEndpoint}]]*/'', clientId: /*[[${clientId}]]*/'', issuer: /*[[${issuer}]]*/'' };
+    /*]]>*/
+</script>
+<script>
+    SessionMonitor.init({ checkUrl: '/api/session/check', checkInterval: 30000,
+        onSessionExpired: function(r) { setTimeout(function(){ window.location.href='/logged-out'; }, 3000); } });
+
+    // ─── Tab switching ─────────────────────────────────
+    var firstCaptchaLoad = true;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById(this.dataset.tab).classList.add('active');
+            // Auto-load captcha when switching to phone tab
+            if (this.dataset.tab === 'tab-phone') {
+                if (firstCaptchaLoad) { loadCaptcha(); firstCaptchaLoad = false; }
+            }
+        });
+    });
+
+    // ─── Generic API call helper ──────────────────────────
+    function apiCall(method, url, tabId) {
+        var respEl = document.getElementById('resp-' + tabId);
+        respEl.style.display = 'block';
+        respEl.className = 'response';
+        respEl.textContent = 'Loading...';
+        fetch(url, { method: method, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    respEl.className = r.ok ? 'response success' : 'response error';
+                    respEl.textContent = JSON.stringify(data, null, 2);
+                });
+            })
+            .catch(function(e) {
+                respEl.className = 'response error';
+                respEl.textContent = 'Error: ' + e.message;
+            });
+    }
+
+    function postApi(url, tabId, bodyParams) {
+        var respEl = document.getElementById('resp-' + tabId);
+        respEl.style.display = 'block';
+        respEl.className = 'response';
+        respEl.textContent = 'Loading...';
+        var formBody = Object.keys(bodyParams)
+            .map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(bodyParams[k]); })
+            .join('&');
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: formBody
+        })
+            .then(function(r) {
+                return r.json().then(function(data) {
+                    respEl.className = r.ok ? 'response success' : 'response error';
+                    respEl.textContent = JSON.stringify(data, null, 2);
+                    return data;
+                });
+            })
+            .catch(function(e) {
+                respEl.className = 'response error';
+                respEl.textContent = 'Error: ' + e.message;
+                throw e;
+            });
+    }
+
+    // ─── Token operations ───────────────────────────────
+    function revokeToken() {
+        var hint = document.getElementById('revoke-type').value;
+        postApi('/api/token/revoke', 'tab-tokens', { tokenTypeHint: hint });
+    }
+
+    // ─── JWT Decode ────────────────────────────────────
+    function base64UrlDecode(str) {
+        str = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (str.length % 4) str += '=';
+        try {
+            return JSON.parse(decodeURIComponent(escape(atob(str))));
+        } catch(e) {
+            return atob(str);
+        }
+    }
+    function decodeJwt() {
+        var jwt = document.getElementById('jwt-input').value.trim();
+        if (!jwt) { alert('请粘贴 JWT 令牌'); return; }
+        var parts = jwt.split('.');
+        var headerCard = document.getElementById('jwt-header-card');
+        var payloadCard = document.getElementById('jwt-payload-card');
+        var sigCard = document.getElementById('jwt-sig-card');
+        try {
+            var header = JSON.stringify(base64UrlDecode(parts[0]), null, 2);
+            document.getElementById('jwt-header').textContent = header;
+            document.getElementById('jwt-header').className = 'response success';
+            headerCard.style.display = 'block';
+        } catch(e) {
+            document.getElementById('jwt-header').textContent = 'Decode Error: ' + e.message;
+            document.getElementById('jwt-header').className = 'response error';
+            headerCard.style.display = 'block';
+        }
+        try {
+            var payload = JSON.stringify(base64UrlDecode(parts[1]), null, 2);
+            document.getElementById('jwt-payload').textContent = payload;
+            document.getElementById('jwt-payload').className = 'response success';
+            payloadCard.style.display = 'block';
+        } catch(e) {
+            document.getElementById('jwt-payload').textContent = 'Decode Error: ' + e.message;
+            document.getElementById('jwt-payload').className = 'response error';
+            payloadCard.style.display = 'block';
+        }
+        if (parts[2]) {
+            document.getElementById('jwt-sig').textContent = parts[2];
+            document.getElementById('jwt-sig').className = 'response';
+            sigCard.style.display = 'block';
+        } else {
+            sigCard.style.display = 'none';
+        }
+    }
+    function fillJwtAccessToken() {
+        fetch('/api/token/raw')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.access_token) document.getElementById('jwt-input').value = d.access_token;
+            })
+            .catch(function(){});
+    }
+    function fillJwtIdToken() {
+        fetch('/api/token/raw')
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.id_token) document.getElementById('jwt-input').value = d.id_token;
+            })
+            .catch(function(){});
+    }
+
+    // ─── Password ──────────────────────────────────────
+    function passwordLogin() {
+        postApi('/api/auth/password', 'tab-password', {
+            username: document.getElementById('pw-user').value,
+            password: document.getElementById('pw-pass').value
+        });
+    }
+
+    // ─── Phone ─────────────────────────────────────────
+    var captchaToken = '';
+    function loadCaptcha() {
+        fetch('/api/duca/verifyCode')
+            .then(function(r){return r.json();})
+            .then(function(d){
+                if (d.code === 200) {
+                    captchaToken = d.data.token;
+                    document.getElementById('captcha-img').src = d.data.image;
+                } else {
+                    alert('获取图形验证码失败: ' + (d.msg || '未知错误'));
+                }
+            })
+            .catch(function(e){alert('获取图形验证码请求失败: '+e.message);});
+    }
+    function sendSms() {
+        var phone = document.getElementById('phone-num').value;
+        var captcha = document.getElementById('phone-captcha').value;
+        if (!phone) { alert('请输入手机号'); return; }
+        if (!captcha) { alert('请输入图形验证码'); return; }
+        if (!captchaToken) { alert('图形验证码 token 缺失，请先刷新图形验证码'); return; }
+        postApi('/api/duca/smsCode', 'tab-phone', {phone: phone, captcha: captcha, captchaToken: captchaToken});
+    }
+    function phoneLogin() {
+        var phone = document.getElementById('phone-num').value;
+        var code = document.getElementById('phone-code').value;
+        if (!phone) { alert('请输入手机号'); return; }
+        if (!code) { alert('请输入短信验证码'); return; }
+        postApi('/api/auth/phone', 'tab-phone', {phone: phone, code: code});
+    }
+    function phoneLoginOnly() {
+        var phone = document.getElementById('phone-num').value;
+        if (!phone) { alert('请输入手机号'); return; }
+        postApi('/api/auth/phone/only', 'tab-phone', {phone: phone});
+    }
+
+    // ─── Device Auth ────────────────────────────────────
+    function deviceAuth() {
+        postApi('/api/auth/device', 'tab-device', {}).then(function(data) {
+            if (!data || !data.device_code) return;
+            document.getElementById('device-step1').style.display = 'block';
+            document.getElementById('device-code').value = data.device_code || '';
+            document.getElementById('device-user-code').value = data.user_code || '';
+            document.getElementById('device-verify-uri').value = data.verification_uri || '';
+            var completeUri = data.verification_uri_complete || '';
+            document.getElementById('device-verify-uri-complete').value = completeUri;
+            var link = document.getElementById('device-verify-link');
+            if (completeUri) {
+                link.href = completeUri;
+                link.style.display = 'inline-block';
+            } else if (data.verification_uri && data.user_code) {
+                link.href = data.verification_uri + '?user_code=' + data.user_code;
+                link.style.display = 'inline-block';
+            } else {
+                link.style.display = 'none';
+            }
+        });
+    }
+    function devicePoll() {
+        var deviceCode = document.getElementById('device-code').value;
+        if (!deviceCode) { alert('请先获取 device_code'); return; }
+        var btn = document.getElementById('device-poll-btn');
+        btn.disabled = true; btn.textContent = '轮询中...';
+        postApi('/api/auth/device/poll', 'tab-device', { deviceCode: deviceCode })
+            .finally(function() { btn.disabled = false; btn.textContent = '2. 轮询令牌'; });
+    }
+
+    // ─── PKCE ──────────────────────────────────────────
+    function generatePKCE() {
+        var array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        var verifier = base64url(array);
+        document.getElementById('pkce-verifier').value = verifier;
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function(hash) {
+            var challenge = base64url(new Uint8Array(hash));
+            document.getElementById('pkce-challenge').value = challenge;
+            // Build auth URL
+            var authUrl = DMS.authEndpoint +
+                '?response_type=code' +
+                '&client_id=' + DMS.clientId +
+                '&scope=openid+profile+email+offline_access' +
+                '&redirect_uri=' + encodeURIComponent('http://localhost:8080/api/auth/pkce/callback') +
+                '&state=' + base64url(crypto.getRandomValues(new Uint8Array(8))) +
+                '&code_challenge=' + challenge +
+                '&code_challenge_method=S256';
+            document.getElementById('pkce-auth-url').value = authUrl;
+            document.getElementById('pkce-start-btn').disabled = false;
+            // Store verifier in sessionStorage for callback page
+            sessionStorage.setItem('pkce_code_verifier', verifier);
+        });
+    }
+
+    function startPKCEFlow() {
+        var url = document.getElementById('pkce-auth-url').value;
+        if (!url) { alert('请先生成 PKCE 参数'); return; }
+        // Store verifier again (in case browser clears between pages)
+        sessionStorage.setItem('pkce_code_verifier', document.getElementById('pkce-verifier').value);
+        window.open(url, 'pkce-auth', 'width=600,height=700');
+    }
+
+    function copyPKCEUrl() {
+        var input = document.getElementById('pkce-auth-url');
+        input.select(); navigator.clipboard.writeText(input.value);
+    }
+
+    function base64url(buf) {
+        var str = btoa(String.fromCharCode.apply(null, buf));
+        return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    // ─── WeChat / WorkWx ───────────────────────────────
+    function fetchWechatQrcode() {
+        var state = 'wechat-demo-' + Date.now();
+        fetch('/api/auth/wechat/qrcode?state=' + encodeURIComponent(state), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            var respEl = document.getElementById('resp-tab-wechat');
+            respEl.style.display = 'block';
+            respEl.className = 'response';
+            respEl.textContent = JSON.stringify(data, null, 2);
+            // DUCA returns {code: 200, data: "qrcode_url"}
+            var qrUrl = data.data || data.qrcodeUrl || data.qrcode_url;
+            if (qrUrl) {
+                showQrCode('wechat', qrUrl);
+            }
+        }).catch(function(e) {
+            document.getElementById('resp-tab-wechat').textContent = 'Error: ' + e.message;
+        });
+    }
+
+    function fetchWorkwxQrcode() {
+        var state = 'workwx-demo-' + Date.now();
+        fetch('/api/auth/workwx/qrcode?state=' + encodeURIComponent(state), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            var respEl = document.getElementById('resp-tab-workwx');
+            respEl.style.display = 'block';
+            respEl.className = 'response';
+            respEl.textContent = JSON.stringify(data, null, 2);
+            var qrUrl = data.data || data.qrcodeUrl || data.qrcode_url;
+            if (qrUrl) {
+                showQrCode('workwx', qrUrl);
+            }
+        }).catch(function(e) {
+            document.getElementById('resp-tab-workwx').textContent = 'Error: ' + e.message;
+        });
+    }
+
+    function fetchWxOfficalQrcode() {
+        var state = 'wxoffical-demo-' + Date.now();
+        fetch('/api/auth/wxoffical/qrcode?state=' + encodeURIComponent(state), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            var respEl = document.getElementById('resp-tab-wxoffical');
+            respEl.style.display = 'block';
+            respEl.className = 'response';
+            respEl.textContent = JSON.stringify(data, null, 2);
+            var qrUrl = data.data || data.qrcodeUrl || data.qrcode_url;
+            if (qrUrl) {
+                showQrCode('wxoffical', qrUrl);
+            }
+        }).catch(function(e) {
+            document.getElementById('resp-tab-wxoffical').textContent = 'Error: ' + e.message;
+        });
+    }
+
+    function showQrCode(prefix, qrUrl) {
+        document.getElementById(prefix + '-qr-section').style.display = 'block';
+        document.getElementById(prefix + '-qr-link').href = qrUrl;
+        // Use qrserver API to generate a QR image from the URL
+        var imgSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(qrUrl);
+        document.getElementById(prefix + '-qr-img').src = imgSrc;
+    }
+
+    // ─── Third UID ────────────────────────────────────
+    function thirdUidLogin() {
+        postApi('/api/auth/third-uid', 'tab-thirduid', {
+            thirdUserId: document.getElementById('third-uid').value,
+            userName: document.getElementById('third-userName').value
+        });
+    }
+
+    // ─── PAR ───────────────────────────────────────────
+    function doPar() {
+        postApi('/api/auth/par', 'tab-par', {
+            redirectUri: document.getElementById('par-redirect').value
+        }).then(function(data) {
+            if (data && data.request_uri) {
+                document.getElementById('par-step2').style.display = 'block';
+                document.getElementById('par-request-uri').value = data.request_uri;
+                document.getElementById('par-expires').value = (data.expires_in || '?') + 's';
+                var authUrl = DMS.authEndpoint + '?request_uri=' + encodeURIComponent(data.request_uri) +
+                    '&client_id=' + DMS.clientId;
+                document.getElementById('par-auth-url').value = authUrl;
+                document.getElementById('par-auth-link').href = authUrl;
+            }
+        });
+    }
+    function copyParUrl() {
+        var input = document.getElementById('par-auth-url');
+        input.select(); navigator.clipboard.writeText(input.value);
+    }
+
+    // ─── Token Exchange ─────────────────────────────────
+    function tokenExchange() {
+        postApi('/api/auth/token-exchange', 'tab-tokenex', {
+            audience: document.getElementById('te-audience').value,
+            scope: document.getElementById('te-scope').value
+        });
+    }
+
+    // ─── DPoP ─────────────────────────────────────────
+    var dpopKey = null;
+    function generateDpopKey() {
+        crypto.subtle.generateKey(
+            { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1,0,1]),
+              hash: 'SHA-256' },
+            true, ['sign', 'verify']
+        ).then(function(keyPair) {
+            dpopKey = keyPair;
+            return crypto.subtle.exportKey('jwk', keyPair.publicKey);
+        }).then(function(jwk) {
+            document.getElementById('dpop-jwk').value = JSON.stringify(jwk, null, 2);
+            document.getElementById('dpop-step2').style.display = 'block';
+        }).catch(function(e) {
+            alert('生成密钥失败: ' + e.message);
+        });
+    }
+
+    function fillAccessToken() {
+        // Fetch current access token via userinfo endpoint
+        fetch('/api/auth/current', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data && data.accessToken) {
+                    document.getElementById('dpop-at').value = data.accessToken;
+                }
+            });
+    }
+
+    function doDpopCall() {
+        var accessToken = document.getElementById('dpop-at').value.trim();
+        var url = document.getElementById('dpop-url').value.trim();
+        if (!dpopKey) { alert('请先生成 DPoP 密钥对'); return; }
+        if (!accessToken) { alert('请填入 Access Token'); return; }
+
+        var htu = window.location.origin + url;
+        var htm = 'GET';
+        var jti = base64url(crypto.getRandomValues(new Uint8Array(16)));
+
+        // Build DPoP Proof JWT
+        buildDpopProof(dpopKey, htm, htu, accessToken, jti).then(function(proofJwt) {
+            document.getElementById('dpop-proof').value = proofJwt;
+            // Send request with DPoP header
+            var respEl = document.getElementById('resp-tab-dpop');
+            respEl.style.display = 'block';
+            respEl.className = 'response';
+            respEl.textContent = 'Loading...';
+
+            return fetch(url, {
+                method: htm,
+                headers: {
+                    'Authorization': 'DPoP ' + accessToken,
+                    'DPoP': proofJwt,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        }).then(function(r) {
+            return r.json().then(function(data) {
+                var respEl = document.getElementById('resp-tab-dpop');
+                respEl.className = r.ok ? 'response success' : 'response error';
+                respEl.textContent = JSON.stringify(data, null, 2);
+            });
+        }).catch(function(e) {
+            var respEl = document.getElementById('resp-tab-dpop');
+            respEl.className = 'response error';
+            respEl.textContent = 'Error: ' + e.message;
+        });
+    }
+
+    function buildDpopProof(keyPair, htm, htu, accessToken, jti) {
+        var header = { typ: 'dpop+jwt', alg: 'RS256' };
+        // Export public key JWK for the jwk header
+        return crypto.subtle.exportKey('jwk', keyPair.publicKey).then(function(pubJwk) {
+            // Build a clean JWK with only required fields
+            var headerJwk = { kty: pubJwk.kty, n: pubJwk.n, e: pubJwk.e, alg: 'RS256' };
+            header.jwk = headerJwk;
+
+            var now = Math.floor(Date.now() / 1000);
+            var payload = { jti: jti, htm: htm, htu: htu, iat: now };
+
+            // Compute ath = base64url(sha256(access_token))
+            return crypto.subtle.digest('SHA-256', new TextEncoder().encode(accessToken)).then(function(hash) {
+                payload.ath = base64url(new Uint8Array(hash));
+
+                // Sign: encode header + payload, sign, assemble
+                var headerB64 = base64url(new TextEncoder().encode(JSON.stringify(header)));
+                var payloadB64 = base64url(new TextEncoder().encode(JSON.stringify(payload)));
+                var signingInput = headerB64 + '.' + payloadB64;
+
+                return crypto.subtle.sign(
+                    { name: 'RSASSA-PKCS1-v1_5' },
+                    keyPair.privateKey,
+                    new TextEncoder().encode(signingInput)
+                ).then(function(sig) {
+                    var sigB64 = base64url(new Uint8Array(sig));
+                    return signingInput + '.' + sigB64;
+                });
+            });
+        });
+    }
+
+    // ─── Unified Logout ──────────────────────────────
+    function doRpLogout() {
+        window.location.href = '/logout';
+    }
+
+    function simulateBackChannel(reason) {
+        var formBody = 'reason=' + encodeURIComponent(reason);
+        fetch('/api/logout/simulate-backchannel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+            body: formBody
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            var respEl = document.getElementById('resp-tab-logout');
+            respEl.style.display = 'block';
+            respEl.className = 'response success';
+            respEl.textContent = JSON.stringify(data, null, 2);
+            // Trigger session check to see the effect
+            setTimeout(checkSessionNow, 500);
+        });
+    }
+
+    function checkLogoutReason() {
+        fetch('/api/logout/reason', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var respEl = document.getElementById('resp-tab-logout-reason');
+            respEl.style.display = 'block';
+            respEl.className = data.expired ? 'response error' : 'response success';
+            respEl.textContent = JSON.stringify(data, null, 2);
+        });
+    }
+
+    function checkSessionNow() {
+        fetch('/api/session/check', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var respEl = document.getElementById('resp-tab-logout-check');
+            respEl.style.display = 'block';
+            respEl.className = data.code === 200 ? 'response success' : 'response error';
+            respEl.textContent = JSON.stringify(data, null, 2);
+        });
+    }
+
+    // ═══════════ DUCA Open API Spec ═══════════
+    var DUCA_APIS = [
+        // ═══════ 客户端管理 Client ═══════
+        {cat:'客户端',catColor:'var(--primary)',method:'GET',path:'/oauth2/open/client/{clientId}',
+         desc:'获取客户端信息（脱敏，不含 client_secret）',scope:'',pathParams:[
+            {name:'clientId',type:'String',desc:'客户端ID',required:true}
+         ],bodyParams:[],
+         responseData:'{client_id, name, logo, summary, authorized_grant_types, web_server_redirect_uri, client_authentication_method, access_token_time_to_live, refresh_token_time_to_live, start_url, logout_callback, ...}'},
+        {cat:'客户端',catColor:'var(--primary)',method:'GET',path:'/oauth2/open/client/info/{clientId}',
+         desc:'获取注册客户端完整详情（含 client_secret 等敏感字段）',scope:'',pathParams:[
+            {name:'clientId',type:'String',desc:'客户端ID',required:true}
+         ],bodyParams:[],
+         responseData:'RegisteredClient 完整对象，含 client_id, client_secret, scopes, client_settings, token_settings, redirect_uris 等所有配置'},
+        {cat:'客户端',catColor:'var(--primary)',method:'POST',path:'/oauth2/open/client/add',
+         desc:'创建新客户端，返回 client_id 和 client_secret',scope:'client:create',pathParams:[],bodyParams:[
+            {name:'name',type:'String',desc:'客户端名称，用于在 DUCA 管理后台识别',required:true},
+            {name:'authorized_grant_types',type:'String',desc:'支持的授权类型，逗号分隔',required:false,hints:[
+                {v:'authorization_code,refresh_token',label:'authorization_code,refresh_token'},
+                {v:'authorization_code,refresh_token,password',label:'authorization_code,refresh_token,password'},
+                {v:'authorization_code,refresh_token,password,phone,thirdUid',label:'authorization_code,refresh_token,password,phone,thirdUid'}]},
+            {name:'web_server_redirect_uri',type:'String',desc:'OAuth2 回调地址，授权成功后跳转',required:false},
+            {name:'client_authentication_method',type:'String',desc:'Token 端点身份验证方式',required:false,hints:[
+                {v:'client_secret_post',label:'client_secret_post (POST body 中传 secret)'},
+                {v:'client_secret_basic',label:'client_secret_basic (HTTP Basic Auth)'},
+                {v:'client_secret_jwt',label:'client_secret_jwt (JWT 签名)'},
+                {v:'private_key_jwt',label:'private_key_jwt (私钥 JWT)'},
+                {v:'none',label:'none (无验证/Public Client)'}]},
+            {name:'access_token_time_to_live',type:'Integer',desc:'access_token 有效期，单位秒，默认 1209600 (14天)',required:false},
+            {name:'refresh_token_time_to_live',type:'Integer',desc:'refresh_token 有效期，单位秒，默认 2592000 (30天)',required:false},
+            {name:'summary',type:'String',desc:'客户端描述/备注',required:false},
+            {name:'logoutCallback',type:'String',desc:'退出登录后的回调地址',required:false},
+            {name:'startUrl',type:'String',desc:'DUCA 登录页上"发起登录"链接的地址',required:false},
+            {name:'require_proof_key',type:'Integer',desc:'是否要求 PKCE 挑战码',required:false,wireType:'boolean',hints:[{v:1,label:'是 (true)'},{v:0,label:'否 (false)'}]}
+         ],responseData:'{client_id: "新生成的客户端ID", client_secret: "新生成的客户端密钥"}'},
+        {cat:'客户端',catColor:'var(--primary)',method:'PUT',path:'/oauth2/open/client/{clientId}',
+         desc:'更新已有客户端配置，只更新传入的字段',scope:'client:update',pathParams:[
+            {name:'clientId',type:'String',desc:'要更新的客户端ID',required:true}
+         ],bodyParams:[
+            {name:'name',type:'String',desc:'客户端名称',required:false},
+            {name:'authorized_grant_types',type:'String',desc:'支持的授权类型',required:false},
+            {name:'web_server_redirect_uri',type:'String',desc:'OAuth2 回调地址',required:false},
+            {name:'client_authentication_method',type:'String',desc:'Token 端点认证方式',required:false,hints:[
+                {v:'client_secret_post',label:'client_secret_post'},{v:'client_secret_basic',label:'client_secret_basic'},
+                {v:'client_secret_jwt',label:'client_secret_jwt'},{v:'none',label:'none'}]},
+            {name:'access_token_time_to_live',type:'Integer',desc:'access_token 有效期(秒)',required:false},
+            {name:'refresh_token_time_to_live',type:'Integer',desc:'refresh_token 有效期(秒)',required:false},
+            {name:'summary',type:'String',desc:'描述',required:false},
+            {name:'logoutCallback',type:'String',desc:'退出回调地址',required:false},
+            {name:'startUrl',type:'String',desc:'发起登录页地址',required:false}
+         ],responseData:'{code: 200, msg: "success", data: null} — 无 data 返回，仅表示操作成功'},
+        // ═══════ 分组管理 Group ═══════
+        {cat:'分组',catColor:'#2e7d32',method:'GET',path:'/open/group/list',
+         desc:'获取全部分组树，返回嵌套的部门/公司结构',scope:'group:list',pathParams:[],bodyParams:[],
+         responseData:'[{id, name, parentId, type(1=公司/2=部门), code, uuid, hasChild(1=有子/0=无子), children:[...]}, ...] — 嵌套树形结构'},
+        {cat:'分组',catColor:'#2e7d32',method:'GET',path:'/open/group/{id}',
+         desc:'获取单个分组详细信息',scope:'group:view',pathParams:[
+            {name:'id',type:'Integer',desc:'分组ID',required:true}
+         ],bodyParams:[],
+         responseData:'{id, name, parentId, type, code, uuid(负责人), estabDate(成立时间), allowSyncWorkWx, hasChild, ...}'},
+        {cat:'分组',catColor:'#2e7d32',method:'POST',path:'/open/group/add',
+         desc:'添加新部门/公司',scope:'group:add',pathParams:[],bodyParams:[
+            {name:'name',type:'String',desc:'部门名称，中文开头，可含字母数字下划线',required:true},
+            {name:'parentId',type:'Integer',desc:'上级部门ID，0 表示根部门',required:false},
+            {name:'type',type:'Integer',desc:'分组类型',required:false,hints:[{v:1,label:'1 — 公司'},{v:2,label:'2 — 部门'}]},
+            {name:'code',type:'String',desc:'部门编码',required:false},
+            {name:'uuid',type:'String',desc:'部门负责人的用户 UUID',required:false},
+            {name:'allowSyncWorkWx',type:'Integer',desc:'是否同步到企业微信通讯录',required:false,hints:[{v:1,label:'1 — 是'},{v:0,label:'0 — 否'}]}
+         ],responseData:'新创建的分组ID (int) — 如: 42'},
+        {cat:'分组',catColor:'#2e7d32',method:'PUT',path:'/open/group/{id}',
+         desc:'修改已有分组的名称、上级、负责人等信息',scope:'group:update',pathParams:[
+            {name:'id',type:'Integer',desc:'要修改的分组ID',required:true}
+         ],bodyParams:[
+            {name:'name',type:'String',desc:'新的部门名称',required:true},
+            {name:'parentId',type:'Integer',desc:'新的上级部门ID',required:false},
+            {name:'type',type:'Integer',desc:'分组类型',required:false,hints:[{v:1,label:'1 — 公司'},{v:2,label:'2 — 部门'}]},
+            {name:'code',type:'String',desc:'部门编码',required:false},
+            {name:'uuid',type:'String',desc:'负责人UUID',required:false}
+         ],responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'分组',catColor:'#2e7d32',method:'DELETE',path:'/open/group/{id}',
+         desc:'删除指定分组（有子部门或有用户时不可删除）',scope:'group:del',pathParams:[
+            {name:'id',type:'Integer',desc:'要删除的分组ID',required:true}
+         ],bodyParams:[],
+         responseData:'{code: 200, msg: "success", data: null}'},
+        // ═══════ 用户管理 User ═══════
+        {cat:'用户',catColor:'#ef6c00',method:'GET',path:'/open/user/{uuid}',
+         desc:'获取单个用户的完整详细信息',scope:'user:view',pathParams:[
+            {name:'uuid',type:'String',desc:'用户的 UUID 标识',required:true}
+         ],bodyParams:[],
+         responseData:'{id, uuid, userName, name, phone, email, sex(1男2女), groupId, groupName, position(职务), station(岗位), state(1在职2试用期3退休4内退5长期病休6长期工伤7离职), workNo(工号), leaderUuid, leaderName, avatar, status(1正常2到期3禁用), expireDate, political, bornDate, ...}'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/find',
+         desc:'批量查询用户信息，一次最多 50 个',scope:'user:view',pathParams:[],bodyParams:[
+            {name:'body',type:'String',desc:'用户 UUID 的 JSON 数组，如 ["uuid1","uuid2"]，最多50个',required:true,format:'jsonArray'}
+         ],responseData:'[{DmsUserVo}, {DmsUserVo}, ...] — 用户对象数组'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/list/page/{page}/pageSize/{pageSize}',
+         desc:'分页查询用户列表 — AND 逻辑 (所有条件同时满足)',scope:'user:list',pathParams:[
+            {name:'page',type:'Integer',desc:'页码，从 1 开始',required:false},
+            {name:'pageSize',type:'Integer',desc:'每页条数',required:false}
+         ],bodyParams:[
+            {name:'userName',type:'String',desc:'用户名，模糊匹配',required:false},
+            {name:'name',type:'String',desc:'姓名，模糊匹配',required:false},
+            {name:'phone',type:'String',desc:'手机号，模糊匹配',required:false},
+            {name:'groupId',type:'Integer',desc:'所在部门ID，精确匹配',required:false},
+            {name:'email',type:'String',desc:'邮箱，模糊匹配',required:false},
+            {name:'sex',type:'Integer',desc:'性别',required:false,hints:[{v:1,label:'1 — 男'},{v:2,label:'2 — 女'}]}
+         ],responseData:'{total: 100, list: [{DmsUserVo}, ...], page: 1, pageSize: 10} — 分页结果'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/lists/page/{page}/pageSize/{pageSize}',
+         desc:'分页查询用户列表 — OR 逻辑 (任一条件满足即可)',scope:'user:list',pathParams:[
+            {name:'page',type:'Integer',desc:'页码，从 1 开始',required:false},
+            {name:'pageSize',type:'Integer',desc:'每页条数',required:false}
+         ],bodyParams:[
+            {name:'userName',type:'String',desc:'用户名，模糊匹配',required:false},
+            {name:'name',type:'String',desc:'姓名，模糊匹配',required:false},
+            {name:'phone',type:'String',desc:'手机号，模糊匹配',required:false},
+            {name:'groupId',type:'Integer',desc:'部门ID',required:false},
+            {name:'email',type:'String',desc:'邮箱，模糊匹配',required:false},
+            {name:'sex',type:'Integer',desc:'性别',required:false,hints:[{v:1,label:'1 — 男'},{v:2,label:'2 — 女'}]}
+         ],responseData:'{total: 100, list: [{DmsUserVo}, ...], page: 1, pageSize: 10} — 分页结果'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/listByUserName',
+         desc:'按用户名列表批量查询，一次最多 50 个',scope:'user:list',pathParams:[],bodyParams:[
+            {name:'body',type:'String',desc:'用户名的 JSON 数组，如 ["zhangsan","lisi"]，最多50个',required:true,format:'jsonArray'}
+         ],responseData:'[{DmsUserVo}, ...] — 用户对象数组'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/add',
+         desc:'添加新用户',scope:'user:add',pathParams:[],bodyParams:[
+            {name:'userName',type:'String',desc:'用户名（登录账号），必须唯一',required:true},
+            {name:'name',type:'String',desc:'姓名/昵称（显示名称）',required:true},
+            {name:'password',type:'String',desc:'初始密码，不填则使用系统默认密码',required:false},
+            {name:'phone',type:'String',desc:'手机号，格式 1[3-9]xxxxxxxxx',required:false},
+            {name:'groupId',type:'Integer',desc:'所属部门ID',required:false},
+            {name:'sex',type:'Integer',desc:'性别',required:false,hints:[{v:1,label:'1 — 男'},{v:2,label:'2 — 女'}]},
+            {name:'email',type:'String',desc:'邮箱地址',required:false},
+            {name:'position',type:'String',desc:'职务名称',required:false},
+            {name:'station',type:'String',desc:'岗位名称',required:false},
+            {name:'state',type:'Integer',desc:'在岗状态',required:false,hints:[
+                {v:1,label:'1 — 在职'},{v:2,label:'2 — 试用期'},{v:3,label:'3 — 退休'},
+                {v:4,label:'4 — 内退'},{v:5,label:'5 — 长期病休'},{v:6,label:'6 — 长期工伤'},{v:7,label:'7 — 离职'}]},
+            {name:'workNo',type:'String',desc:'工号',required:false},
+            {name:'leaderUuid',type:'String',desc:'直属上级的用户 UUID',required:false}
+         ],responseData:'{id, uuid, userName, name, phone, email, groupId, sex, ...} — 新创建的用户完整信息'},
+        {cat:'用户',catColor:'#ef6c00',method:'PUT',path:'/open/user/{uuid}',
+         desc:'编辑用户信息，只更新传入的字段',scope:'user:update',pathParams:[
+            {name:'uuid',type:'String',desc:'要编辑的用户 UUID',required:true}
+         ],bodyParams:[
+            {name:'name',type:'String',desc:'姓名/昵称',required:false},
+            {name:'phone',type:'String',desc:'手机号',required:false},
+            {name:'groupId',type:'Integer',desc:'部门ID',required:false},
+            {name:'sex',type:'Integer',desc:'性别',required:false,hints:[{v:1,label:'1 — 男'},{v:2,label:'2 — 女'}]},
+            {name:'email',type:'String',desc:'邮箱',required:false},
+            {name:'position',type:'String',desc:'职务',required:false},
+            {name:'station',type:'String',desc:'岗位名称',required:false},
+            {name:'state',type:'Integer',desc:'在岗状态',required:false,hints:[
+                {v:1,label:'1 — 在职'},{v:2,label:'2 — 试用期'},{v:3,label:'3 — 退休'},
+                {v:4,label:'4 — 内退'},{v:5,label:'5 — 长期病休'},{v:6,label:'6 — 长期工伤'},{v:7,label:'7 — 离职'}]},
+            {name:'workNo',type:'String',desc:'工号',required:false},
+            {name:'leaderUuid',type:'String',desc:'直属上级的 UUID',required:false}
+         ],responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'用户',catColor:'#ef6c00',method:'DELETE',path:'/open/user/{uuid}',
+         desc:'删除指定用户',scope:'user:del',pathParams:[
+            {name:'uuid',type:'String',desc:'要删除的用户 UUID',required:true}
+         ],bodyParams:[],
+         responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/action',
+         desc:'启用或禁用用户登录权限',scope:'user:update',pathParams:[],bodyParams:[
+            {name:'uuid',type:'String',desc:'目标用户 UUID',required:true},
+            {name:'action',type:'Integer',desc:'操作类型',required:true,hints:[
+                {v:1,label:'1 — 允许登录 (启用)'},{v:3,label:'3 — 禁止登录 (禁用)'}]}
+         ],responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/mvGroup',
+         desc:'调整用户所属部门',scope:'user:move',pathParams:[],bodyParams:[
+            {name:'uuid',type:'String',desc:'用户 UUID',required:true},
+            {name:'groupId',type:'Integer',desc:'目标部门 ID',required:true},
+            {name:'allowSyncWorkWx',type:'Integer',desc:'是否同步到企业微信',required:false,hints:[{v:1,label:'1 — 是'},{v:0,label:'0 — 否'}]}
+         ],responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/passwd',
+         desc:'修改当前登录用户的密码 (需验证旧密码)',scope:'user:passwd',pathParams:[],bodyParams:[
+            {name:'oldPassword',type:'String',desc:'当前旧密码',required:true},
+            {name:'newPassword',type:'String',desc:'新密码',required:true}
+         ],responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'用户',catColor:'#ef6c00',method:'GET',path:'/open/user/sendCode',
+         desc:'给当前登录用户绑定的手机号发送修改密码的短信验证码',scope:'user:passwd',pathParams:[],bodyParams:[],
+         responseData:'{code: 200, msg: "success", data: null} — 验证码发送到用户绑定的手机号'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/modifyPasswd',
+         desc:'通过短信验证码修改当前登录用户密码',scope:'user:passwd',pathParams:[],bodyParams:[
+            {name:'code',type:'String',desc:'手机收到的6位短信验证码',required:true},
+            {name:'newPassword',type:'String',desc:'新密码',required:true}
+         ],responseData:'{code: 200, msg: "success", data: null}'},
+        {cat:'用户',catColor:'#ef6c00',method:'GET',path:'/open/user/phone/sendCode',
+         desc:'发送换绑手机号的短信验证码 (可选指定原手机号)',scope:'user:phone',pathParams:[],bodyParams:[],
+         responseData:'{code: 200, msg: "success", data: null} — 验证码发送成功'},
+        {cat:'用户',catColor:'#ef6c00',method:'POST',path:'/open/user/phone/update',
+         desc:'更换当前用户的绑定手机号',scope:'user:phone',pathParams:[],bodyParams:[
+            {name:'phone',type:'String',desc:'当前绑定的原手机号，用于验证身份',required:true},
+            {name:'code',type:'String',desc:'手机收到的6位短信验证码',required:true},
+            {name:'newPhone',type:'String',desc:'要绑定的新手机号',required:true}
+         ],responseData:'{code: 200, msg: "手机号更换成功", data: null}'}
+    ];
+
+    // Render API sidebar tree once data is defined
+    renderApiTree();
+
+    function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ─── Render Sidebar Tree ───────────────────────
+    function renderApiTree() {
+        var container = document.getElementById('openapi-sidebar-tree');
+        var cats = {};
+        DUCA_APIS.forEach(function(api, idx) {
+            if (!cats[api.cat]) cats[api.cat] = {color:api.catColor, apis:[]};
+            cats[api.cat].apis.push({idx:idx, api:api});
+        });
+        var html = '';
+        Object.keys(cats).forEach(function(cat) {
+            var c = cats[cat];
+            html += '<div class="openapi-cat-group">';
+            html += '<div class="openapi-cat-header" onclick="this.classList.toggle(\'collapsed\');this.nextElementSibling.classList.toggle(\'collapsed\')">';
+            html += '<span class="openapi-cat-dot" style="background:'+c.color+';"></span>';
+            html += cat+' <span style="font-weight:400;font-size:11px;color:var(--text-secondary);margin-left:4px;">('+c.apis.length+')</span>';
+            html += '<span class="openapi-cat-arrow">&#9660;</span></div>';
+            html += '<div class="openapi-api-items">';
+            c.apis.forEach(function(item) {
+                var a = item.api, idx = item.idx;
+                var cls = {'GET':'get','POST':'post','PUT':'put','DELETE':'del'}[a.method]||'get';
+                var label = a.method==='DELETE'?'DEL':a.method;
+                var scopeSuffix = a.scope ? ' <span style="font-size:10px;color:#7b1fa2;">'+escHtml(a.scope)+'</span>' : '';
+                html += '<div class="openapi-api-item" data-idx="'+idx+'" data-search="'+escHtml(a.cat+' '+a.method+' '+a.path+' '+a.desc+' '+a.scope).toLowerCase()+'" onclick="selectApi('+idx+',this)">';
+                html += '<span class="api-method '+cls+'">'+label+'</span>';
+                html += '<span class="api-item-path">'+escHtml(a.path)+'</span>';
+                html += scopeSuffix;
+                html += '</div>';
+            });
+            html += '</div></div>';
+        });
+        container.innerHTML = html;
+        window._apiTreeHtml = html;
+    }
+
+    function filterApiTree() {
+        var q = document.getElementById('openapi-search').value.toLowerCase().trim();
+        var groups = document.querySelectorAll('#openapi-sidebar-tree .openapi-cat-group');
+        groups.forEach(function(g) {
+            var items = g.querySelectorAll('.openapi-api-item');
+            var visible = 0;
+            items.forEach(function(item) {
+                var match = !q || item.dataset.search.indexOf(q) >= 0;
+                item.style.display = match ? '' : 'none';
+                if (match) visible++;
+            });
+            g.style.display = visible > 0 ? '' : 'none';
+            // Expand group if filtering
+            if (q) {
+                var header = g.querySelector('.openapi-cat-header');
+                var itemsDiv = g.querySelector('.openapi-api-items');
+                if (header && header.classList.contains('collapsed')) {
+                    header.classList.remove('collapsed');
+                }
+                if (itemsDiv && itemsDiv.classList.contains('collapsed')) {
+                    itemsDiv.classList.remove('collapsed');
+                }
+            }
+        });
+    }
+
+    // ─── Select API from sidebar ──────────────────
+    var currentApiIdx = -1;
+    function selectApi(idx, el) {
+        currentApiIdx = idx;
+        var a = DUCA_APIS[idx];
+
+        // Highlight sidebar item
+        document.querySelectorAll('.openapi-api-item').forEach(function(item){item.classList.remove('active');});
+        if (el) el.classList.add('active');
+
+        // Show workspace, hide placeholder
+        document.getElementById('openapi-placeholder').style.display = 'none';
+        document.getElementById('openapi-workspace').style.display = 'flex';
+
+        // Request bar
+        document.getElementById('openapi-method').value = a.method;
+        document.getElementById('openapi-base-url').textContent = DMS.issuer || '';
+        document.getElementById('openapi-path-input').value = a.path;
+
+        // Reset response
+        var respEl = document.getElementById('resp-tab-openapi');
+        respEl.style.display = 'none';
+        document.getElementById('openapi-status').textContent = '';
+        document.getElementById('openapi-duration').textContent = '';
+
+        // Tab: Params
+        var pSection = document.getElementById('openapi-params-section');
+        var pFields = document.getElementById('openapi-params-fields');
+        pFields.innerHTML = '';
+        if (a.pathParams.length > 0) {
+            pSection.style.display = 'block';
+            a.pathParams.forEach(function(p) {
+                var div = document.createElement('div');
+                div.className = 'form-group';
+                var label = document.createElement('label');
+                label.innerHTML = '<b style="color:var(--primary)">'+escHtml(p.name)+'</b> ' +
+                    '<span style="font-size:11px;color:var(--text-secondary)">'+escHtml(p.type)+'</span>' +
+                    (p.required ? '<span style="color:#c62828;font-size:11px;"> 必填</span>' : '');
+                label.title = p.desc;
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'openapi-param-' + p.name;
+                input.placeholder = p.desc;
+                input.style.cssText = 'width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;font-family:monospace;';
+                div.appendChild(label); div.appendChild(input); pFields.appendChild(div);
+            });
+        } else { pSection.style.display = 'none'; }
+
+        var bSection = document.getElementById('openapi-body-section');
+        var bFields = document.getElementById('openapi-body-fields');
+        bFields.innerHTML = '';
+        if (a.bodyParams.length > 0) {
+            bSection.style.display = 'block';
+            a.bodyParams.forEach(function(p) {
+                var div = document.createElement('div'); div.className = 'form-group'; div.style.marginBottom='0';
+                var label = document.createElement('label');
+                label.innerHTML = '<b>'+escHtml(p.name)+'</b> ' +
+                    '<span style="font-size:11px;color:var(--text-secondary)">'+escHtml(p.type)+'</span>' +
+                    (p.required ? '<span style="color:#c62828;font-size:11px;"> 必填</span>' : '');
+                label.title = p.desc;
+                var input;
+                if (p.hints && p.hints.length > 0) {
+                    input = document.createElement('select');
+                    input.style.cssText = 'width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;';
+                    var emptyOpt = document.createElement('option'); emptyOpt.value=''; emptyOpt.textContent='-- '+p.desc+' --'; input.appendChild(emptyOpt);
+                    p.hints.forEach(function(h){var opt=document.createElement('option');opt.value=h.v;opt.textContent=h.label;input.appendChild(opt);});
+                } else {
+                    input = document.createElement('input');
+                    input.type = p.type==='Integer'?'number':'text';
+                    input.placeholder = p.format==='jsonArray' ? '["value1","value2"]' : p.desc;
+                    input.style.cssText = 'width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:13px;';
+                }
+                input.id = 'openapi-body-'+p.name;
+                div.appendChild(label); div.appendChild(input); bFields.appendChild(div);
+            });
+        } else { bSection.style.display = 'none'; }
+
+        document.getElementById('openapi-no-params').style.display =
+            (a.pathParams.length===0 && a.bodyParams.length===0) ? 'block' : 'none';
+
+        // Tab: Docs
+        var docsHtml = '<div style="font-size:14px;margin-bottom:4px;"><b>'+escHtml(a.desc)+'</b></div>';
+        if (a.scope) docsHtml += '<div style="margin-bottom:12px;color:var(--text-secondary);">必需 Scope: <code style="background:#f3e5f5;color:#7b1fa2;padding:2px 6px;border-radius:3px;">'+escHtml(a.scope)+'</code></div>';
+        else docsHtml += '<div style="margin-bottom:12px;"></div>';
+
+        if (a.pathParams.length > 0) {
+            docsHtml += '<div class="openapi-section-title">路径参数</div><table class="openapi-docs-table"><tr><th>名称</th><th>类型</th><th>必填</th><th>说明</th></tr>';
+            a.pathParams.forEach(function(p){docsHtml+='<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+escHtml(p.type)+'</td><td>'+(p.required?'<span class="openapi-badge-req">是</span>':'否')+'</td><td>'+escHtml(p.desc)+'</td></tr>';});
+            docsHtml += '</table>';
+        }
+        if (a.bodyParams.length > 0) {
+            docsHtml += '<div class="openapi-section-title" style="margin-top:16px;">请求体参数</div><table class="openapi-docs-table"><tr><th>名称</th><th>类型</th><th>必填</th><th>说明</th></tr>';
+            a.bodyParams.forEach(function(p){docsHtml+='<tr><td><b>'+escHtml(p.name)+'</b></td><td>'+escHtml(p.type)+'</td><td>'+(p.required?'<span class="openapi-badge-req">是</span>':'否')+'</td><td>'+escHtml(p.desc)+'</td></tr>';});
+            docsHtml += '</table>';
+        }
+        var respFmt = a.responseData || '{\n  "code": 200,\n  "msg": "success",\n  "data": {}\n}';
+        docsHtml += '<div class="openapi-section-title" style="margin-top:16px;">响应格式</div><pre style="background:#f5f5f5;padding:12px;border-radius:4px;font-size:12px;white-space:pre-wrap;">'+escHtml(respFmt)+'</pre>';
+        document.getElementById('openapi-docs-content').innerHTML = docsHtml;
+
+        // Reset to params tab and scroll to top
+        switchOpenApiTab('params');
+    }
+
+    // ─── Tab switching ────────────────────────────
+    function switchOpenApiTab(panelName) {
+        document.querySelectorAll('.openapi-tab').forEach(function(t){t.classList.remove('active');});
+        document.querySelectorAll('.openapi-panel').forEach(function(p){p.classList.remove('active');});
+        var tab = document.querySelector('.openapi-tab[data-panel="'+panelName+'"]');
+        var panel = document.getElementById('openapi-panel-'+panelName);
+        if (tab) tab.classList.add('active');
+        if (panel) panel.classList.add('active');
+    }
+    document.querySelector('#openapi-workspace') && document.querySelectorAll('.openapi-tab').forEach(function(tab){
+        tab.addEventListener('click', function(){switchOpenApiTab(this.dataset.panel);});
+    });
+
+    // ─── Call Open API ────────────────────────────
+    function callOpenApi() {
+        var a = DUCA_APIS[currentApiIdx];
+        if (!a) return;
+        var path = document.getElementById('openapi-path-input').value;
+        var respEl = document.getElementById('resp-tab-openapi');
+        var startTime = Date.now();
+
+        // Collect path params
+        for (var i = 0; i < a.pathParams.length; i++) {
+            var p = a.pathParams[i];
+            var val = document.getElementById('openapi-param-' + p.name);
+            var v = val ? val.value.trim() : '';
+            if (!v && p.required) {
+                respEl.style.display = 'block'; respEl.className = 'openapi-response-body error';
+                respEl.textContent = '请填写必填的路径参数: ' + p.name + ' (' + p.desc + ')';
+                return;
+            }
+            path = path.replace('{'+p.name+'}', v || '{'+p.name+'}');
+        }
+
+        // Collect body params
+        var body = null;
+        if (a.bodyParams.length > 0) {
+            var b0 = a.bodyParams[0];
+            if (b0.format === 'jsonArray') {
+                var raw = document.getElementById('openapi-body-' + b0.name).value.trim();
+                if (!raw) { respEl.style.display='block'; respEl.className='openapi-response-body error'; respEl.textContent='请填写: '+b0.desc; return; }
+                body = raw;
+            } else {
+                var obj = {};
+                for (var j = 0; j < a.bodyParams.length; j++) {
+                    var bp = a.bodyParams[j];
+                    var el = document.getElementById('openapi-body-' + bp.name);
+                    var v = el ? el.value.trim() : '';
+                    if (!v && bp.required) {
+                        respEl.style.display='block'; respEl.className='openapi-response-body error';
+                        respEl.textContent='请填写必填参数: '+bp.name+' ('+bp.desc+')'; return;
+                    }
+                    if (v) {
+                        if (bp.type==='Integer') {
+                            if (bp.wireType==='boolean') { obj[bp.name] = v==='1'; }
+                            else { var n=parseInt(v,10); if(isNaN(n)){respEl.style.display='block';respEl.className='openapi-response-body error';respEl.textContent='参数 '+bp.name+' 应为整数';return;} obj[bp.name]=n; }
+                        }
+                        else { obj[bp.name]=v; }
+                    }
+                }
+                body = JSON.stringify(obj);
+            }
+        }
+
+        respEl.style.display = 'block';
+        respEl.className = 'openapi-response-body';
+        respEl.textContent = '请求中...';
+        document.getElementById('openapi-status').textContent = '';
+        document.getElementById('openapi-duration').textContent = '';
+        document.getElementById('openapi-path-input').value = path;
+
+        var params = 'method=' + encodeURIComponent(a.method) + '&path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(body);
+        fetch('/api/open/proxy', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest'},
+            body: params
+        })
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
+        .then(function(result){
+            var d = result.data;
+            respEl.className = 'openapi-response-body ' + (d.error ? 'error' : 'success');
+            respEl.textContent = JSON.stringify(d, null, 2);
+            document.getElementById('openapi-status').textContent = (d.error ? 'Error' : '200 OK');
+            document.getElementById('openapi-status').style.color = d.error ? 'var(--error)' : 'var(--success)';
+            document.getElementById('openapi-duration').textContent = (Date.now()-startTime)+'ms';
+        })
+        .catch(function(e){
+            respEl.className = 'openapi-response-body error';
+            respEl.textContent = 'Error: ' + e.message;
+            document.getElementById('openapi-status').textContent = 'Network Error';
+            document.getElementById('openapi-status').style.color = 'var(--error)';
+            document.getElementById('openapi-duration').textContent = (Date.now()-startTime)+'ms';
+        });
+    }
+
+    // ─── Discovery ────────────────────────────────────
+    function loadDiscovery() {
+        apiCall('GET', '/api/duca/discovery', 'tab-discovery');
+    }
+</script>
+</body>
+</html>
