@@ -361,13 +361,19 @@ public class DemoController {
 
     @PostMapping("/open/proxy")
     public ResponseEntity<?> openApiProxy(@AuthenticationPrincipal OidcUser user,
-                                          @RequestParam String method,
-                                          @RequestParam String path,
-                                          @RequestBody(required = false) String body) {
+                                          @RequestBody Map<String, Object> proxyRequest) {
         if (user == null) return ResponseEntity.status(401).body(Map.of("error", "未登录"));
         String accessToken = getAccessToken(user);
         if (accessToken == null) return ResponseEntity.status(400).body(Map.of("error", "无 access_token"));
-        return duca.openApiProxy(method, path, accessToken, body);
+        Object methodObj = proxyRequest.get("method");
+        Object pathObj = proxyRequest.get("path");
+        String method = methodObj != null ? methodObj.toString() : null;
+        String path = pathObj != null ? pathObj.toString() : null;
+        String requestBody = proxyRequest.get("body") != null ? proxyRequest.get("body").toString() : null;
+        if (method == null || method.isBlank() || path == null || path.isBlank()) {
+            return ResponseEntity.status(400).body(Map.of("error", "缺少 method 或 path 参数"));
+        }
+        return duca.openApiProxy(method, path, accessToken, requestBody);
     }
 
     // ─── 服务发现信息 ─────────────────────────────────────

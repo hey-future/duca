@@ -1727,12 +1727,12 @@
         document.getElementById('openapi-duration').textContent = '';
         document.getElementById('openapi-path-input').value = path;
 
-        var params = 'method=' + encodeURIComponent(a.method) + '&path=' + encodeURIComponent(path);
-        if (body) params += '&body=' + encodeURIComponent(body);
+        var reqBody = {method: a.method, path: path};
+        if (body) reqBody.body = body;
         fetch('/api/open/proxy', {
             method: 'POST',
-            headers: {'Content-Type':'application/x-www-form-urlencoded','X-Requested-With':'XMLHttpRequest'},
-            body: params
+            headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+            body: JSON.stringify(reqBody)
         })
         .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d};});})
         .then(function(result){

@@ -1,29 +1,29 @@
-# DMS 统一认证平台 — 客户端接入指南
+# 统一认证平台(DUCA) — 客户端接入指南
 
 ---
 
 ## 1. 名词解释
 
-| 术语 | 全称 | 说明 |
-|------|------|------|
-| **SSO** | Single Sign-On | 单点登录，用户在一处登录后，所有接入的应用都无需再次输入密码 |
-| **OAuth 2.0** | Open Authorization 2.0 | 授权协议，允许第三方应用在用户授权下获取有限的资源访问权限 |
-| **OIDC** | OpenID Connect 1.0 | 基于 OAuth 2.0 的身份认证协议，在令牌基础上增加了 ID Token（身份令牌） |
-| **Authorization Code** | 授权码 | 一次性临时凭证，用于换取 access_token，有效期 5 分钟 |
-| **Access Token** | 访问令牌 | 访问资源的凭证，有效期 14 天，分为 JWT（自包含）和 Opaque（引用型）两种格式 |
-| **Refresh Token** | 刷新令牌 | 用于在 access_token 过期后获取新的 access_token，有效期 30 天 |
-| **ID Token** | 身份令牌 | JWT 格式，包含用户身份信息（姓名、头像等），用于客户端确认用户身份 |
-| **PKCE** | Proof Key for Code Exchange | 授权码的增强安全机制，通过 Code Verifier + Code Challenge 防止授权码被截获 |
-| **Client ID** | 客户端标识 | 向 SSO 平台注册应用后分配的唯一标识 |
-| **Client Secret** | 客户端密钥 | 客户端密钥，用于 confidential 类型客户端认证，**不可暴露在前端代码中** |
-| **Redirect URI** | 回调地址 | 用户授权后，授权服务器重定向的目标地址，必须在平台注册时预先配置 |
-| **Scope** | 授权范围 | 客户端请求的权限范围，如 `openid`（身份信息）、`profile`（用户资料） |
-| **Claim** | 声明 | JWT 令牌中携带的键值对信息，如 `sub`（用户ID）、`name`（用户名） |
-| **JWK / JWKS** | JSON Web Key / Key Set | 用于 JWT 签名验证的密钥/密钥集，每个客户端可拥有独立的 RSA 密钥对 |
-| **Back-Channel Logout** | 反向通道退出 | 用户登出时，授权服务器主动通知所有已登录客户端的退出机制 |
-| **Bearer Token** | 持有者令牌 | 一种令牌使用方式，将 access_token 放在 HTTP Header `Authorization: Bearer <token>` 中 |
-| **SID** | Session ID | 会话标识，嵌入在令牌中，关联用户登录会话，用于退出时精准失效 |
-| **Opaque Token** | 不透明令牌 | 随机字符串令牌，本身不含信息，需通过 introspection（自省）端点验证 |
+| 术语 | 全称 | 说明                                                                                                 |
+|------|------|----------------------------------------------------------------------------------------------------|
+| **SSO** | Single Sign-On | 单点登录，用户在一处登录后，所有接入的应用都无需再次输入密码                                                                     |
+| **OAuth 2.0** | Open Authorization 2.0 | 授权协议，允许第三方应用在用户授权下获取有限的资源访问权限                                                                      |
+| **OIDC** | OpenID Connect 1.0 | 基于 OAuth 2.0 的身份认证协议，在令牌基础上增加了 ID Token（身份令牌）                                                      |
+| **Authorization Code** | 授权码 | 一次性临时凭证，用于换取 access_token，默认有效期 5 分钟                                                               |
+| **Access Token** | 访问令牌 | 访问资源的凭证，默认有效期 14 天，分为 JWT（自包含）和 Opaque（引用型）两种格式                                                    |
+| **Refresh Token** | 刷新令牌 | 用于在 access_token 过期后获取新的 access_token，默认有效期有效期 30 天                                                |
+| **ID Token** | 身份令牌 | JWT 格式，包含用户身份信息（姓名、头像等），用于客户端确认用户身份                                                                |
+| **PKCE** | Proof Key for Code Exchange | 授权码的增强安全机制，通过 Code Verifier + Code Challenge 防止授权码被截获                                              |
+| **Client ID** | 客户端标识 | 向 统一认证 平台注册应用后分配的唯一标识                                                                              |
+| **Client Secret** | 客户端密钥 | 客户端密钥，用于 confidential 类型客户端认证，**不可暴露在前端代码中**                                                       |
+| **Redirect URI** | 回调地址 | 用户授权后，授权服务器重定向的目标地址，必须在平台注册时预先配置                                                                   |
+| **Scope** | 授权范围 | 客户端请求的权限范围，如 `openid`（身份信息）、`profile`（用户资料）                                                        |
+| **Claim** | 声明 | JWT 令牌中携带的键值对信息，如 `sub`（用户ID）、`name`（用户名）                                                          |
+| **JWK / JWKS** | JSON Web Key / Key Set | 用于 JWT 签名验证的密钥/密钥集，每个客户端可拥有独立的 RSA 密钥对                                                             |
+| **Back-Channel Logout** | 反向通道退出 | 用户登出时，授权服务器主动通知所有已登录客户端的退出机制                                                                       |
+| **Bearer Token** | 持有者令牌 | 一种令牌使用方式，遵循 RFC 6750，将 access_token 放在 HTTP Header `Authorization: Bearer <token>` 中，任何持有令牌者即可使用   |
+| **SID** | Session ID | 会话标识（Duca 自定义声明），嵌入在令牌中关联用户登录会话，用于退出时精准失效；                                                         |
+| **Opaque Token** | 不透明令牌 | 随机字符串令牌（非 JWT 三段式格式），本身不包含可读信息，资源服务器无法本地解析，需通过 Token Introspection 端点（RFC 7662）向授权服务器验证有效性并获取关联元数据 |
 
 ---
 
@@ -76,14 +76,14 @@ GET /duca/.well-known/{client_id}/openid-configuration
 
 ### 2.3 环境信息
 
-| 环境 | 地址 |
-|------|------|
-| 开发环境 | `http://localhost:8188/duca` |
-| 生产环境 | `https://sso.17-do.com/duca` |
+| 环境 | 地址                           |
+|------|------------------------------|
+| 开发环境 | `https://ducafront.multimediapress.cn/duca`     |
+| 生产环境 | `https://auth.oucp.com.cn/duca` |
 
 ### 2.4 客户端认证方法
 
-调用令牌端点（`/oauth2/token`）、自省端点（`/oauth2/introspect`）、撤销端点（`/oauth2/revoke`）、PAR 端点（`/oauth2/par`）时，SSO 平台需要验证客户端身份。平台支持 5 种客户端认证方法：
+调用令牌端点（`/oauth2/token`）、自省端点（`/oauth2/introspect`）、撤销端点（`/oauth2/revoke`）、PAR 端点（`/oauth2/par`）时，统一认证 平台需要验证客户端身份。平台支持 5 种客户端认证方法：
 
 | 方法 |  适用场景 | 依赖 |
 |------|------|------|
@@ -186,7 +186,7 @@ grant_type=authorization_code
 
 #### 方法四：private_key_jwt
 
-与 `client_secret_jwt` 原理相同，但使用**非对称密钥**签名 JWT——客户端用私钥签名，SSO 平台从客户端配置的 JWKS 地址获取公钥验签。
+与 `client_secret_jwt` 原理相同，但使用**非对称密钥**签名 JWT——客户端用私钥签名，统一认证 平台从客户端配置的 JWKS 地址获取公钥验签。
 
 **前提条件**：
 1. 注册客户端时需配置 `jwkSetUrl`（客户端公钥托管地址）
@@ -202,7 +202,7 @@ grant_type=authorization_code
 }
 ```
 
-Payload 与 `client_secret_jwt` 相同。`kid` 用于让 SSO 平台在 JWKS 中找到对应公钥。
+Payload 与 `client_secret_jwt` 相同。`kid` 用于让 统一认证 平台在 JWKS 中找到对应公钥。
 
 > 安全等级最高，私钥永不离开客户端，适用于零信任架构。默认支持 `RS256`、`RS384`、`RS512` 算法。
 
@@ -262,7 +262,7 @@ grant_type=authorization_code
 
 **核心特点**：
 - 客户端密钥存储在服务端，安全性最高
-- 用户在被重定向到 SSO 平台完成登录和授权
+- 用户在被重定向到 统一认证 平台完成登录和授权
 - 后端用授权码换取令牌，令牌不会经过浏览器
 
 #### 流程图
@@ -272,23 +272,23 @@ sequenceDiagram
     actor User as 用户
     participant App as 你的应用（后端）
     participant Browser as 浏览器
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>Browser: 1. 访问受保护页面
     Browser->>App: GET /dashboard
-    App->>Browser: 2. 检查未登录，302 重定向到 SSO
+    App->>Browser: 2. 检查未登录，302 重定向到 统一认证
     Note over App: 构造授权请求 URL
-    Browser->>SSO: 3. GET /oauth2/authorize?<br/>response_type=code&<br/>client_id=xxx&<br/>redirect_uri=https://myapp.com/callback&<br/>scope=openid profile&<br/>state=随机字符串
-    SSO->>Browser: 4. 显示登录页面
-    User->>SSO: 5. 输入用户名密码
-    SSO->>SSO: 6. 验证凭证，创建会话
-    SSO->>Browser: 7. 显示授权确认页面（询问是否允许访问）
-    User->>SSO: 8. 确认授权
-    SSO->>Browser: 9. 302 重定向到 redirect_uri<br/>https://myapp.com/callback?code=AUTH_CODE&state=xxx
+    Browser->>统一认证: 3. GET /oauth2/authorize?<br/>response_type=code&<br/>client_id=xxx&<br/>redirect_uri=https://myapp.com/callback&<br/>scope=openid profile&<br/>state=随机字符串
+    统一认证->>Browser: 4. 显示登录页面
+    User->>统一认证: 5. 输入用户名密码
+    统一认证->>统一认证: 6. 验证凭证，创建会话
+    统一认证->>Browser: 7. 显示授权确认页面（询问是否允许访问）
+    User->>统一认证: 8. 确认授权
+    统一认证->>Browser: 9. 302 重定向到 redirect_uri<br/>https://myapp.com/callback?code=AUTH_CODE&state=xxx
     Browser->>App: 10. GET /callback?code=AUTH_CODE&state=xxx
     App->>App: 11. 校验 state 一致性
-    App->>SSO: 12. POST /oauth2/token<br/>grant_type=authorization_code&<br/>code=AUTH_CODE&<br/>client_id=xxx&<br/>client_secret=xxx&<br/>redirect_uri=https://myapp.com/callback
-    SSO->>App: 13. 返回 {access_token, id_token, refresh_token}
+    App->>统一认证: 12. POST /oauth2/token<br/>grant_type=authorization_code&<br/>code=AUTH_CODE&<br/>client_id=xxx&<br/>client_secret=xxx&<br/>redirect_uri=https://myapp.com/callback
+    统一认证->>App: 13. 返回 {access_token, id_token, refresh_token}
     App->>App: 14. 验证 ID Token，建立本地会话
     App->>Browser: 15. 302 重定向到 /dashboard
     Browser->>User: 16. 显示受保护页面
@@ -298,7 +298,7 @@ sequenceDiagram
 
 **Step 1 — 构造授权请求 URL**
 
-将用户浏览器重定向到 SSO 授权端点：
+将用户浏览器重定向到 统一认证 授权端点：
 
 ```
 GET {issuer}/oauth2/authorize
@@ -316,10 +316,11 @@ GET {issuer}/oauth2/authorize
 | `redirect_uri` | 是 | 授权后的回调地址，必须与注册时一致 |
 | `scope` | 是 | 请求的权限范围，多个用空格分隔，如 `openid profile` |
 | `state` | 推荐 | 随机字符串，用于防止 CSRF 攻击，回调时原样返回 |
+| `nonce` | 推荐 | 随机字符串（OIDC 防重放），会原样出现在 ID Token 的 `nonce` 声明中；客户端必须校验返回值一致性 |
 
 **Step 2 — 处理回调，获取授权码**
 
-用户授权后，SSO 重定向到你的 `redirect_uri`：
+用户授权后，统一认证 重定向到你的 `redirect_uri`：
 
 ```
 GET https://myapp.com/callback?code={AUTH_CODE}&state={随机字符串}
@@ -355,12 +356,14 @@ grant_type=authorization_code
 
 **Step 4 — 验证 ID Token**
 
-使用 SSO 的 JWKS 公钥验证 ID Token 的签名：
+使用 统一认证 的 JWKS 公钥验证 ID Token 的签名：
 
 1. 从 OIDC 发现端点获取 `jwks_uri`
 2. 下载 JWKS 公钥
 3. 使用 RS256 算法验签
-4. 校验 `iss`（issuer）、`aud`（audience，即你的 client_id）、`exp`（过期时间）
+4. 校验 `iss`（issuer）、`aud`（audience，即你的 client_id）、`exp`（过期时间）、`iat`（签发时间，不能太偏离当前时间）
+5. 若授权请求中传递了 `nonce`，必须校验 ID Token 中返回的 `nonce` 一致
+6. 若 `aud` 为多值数组，必须校验 `azp`（authorized party）声明与你的 `client_id` 一致
 
 验签通过后，从 ID Token 中提取用户信息，建立本地会话。
 
@@ -381,20 +384,20 @@ grant_type=authorization_code
 sequenceDiagram
     actor User as 用户
     participant App as 你的 SPA/App
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>App: 1. 点击"登录"
     App->>App: 2. 生成 code_verifier（随机字符串）<br/>code_challenge = SHA256(verifier) → Base64URL
-    App->>SSO: 3. 打开系统浏览器访问<br/>GET /oauth2/authorize?<br/>  response_type=code&<br/>  client_id=xxx&<br/>  redirect_uri=myapp://callback&<br/>  code_challenge=CHALLENGE&<br/>  code_challenge_method=S256&<br/>  state=随机字符串
-    SSO->>User: 4. 显示登录页面
-    User->>SSO: 5. 输入凭据登录
-    SSO->>User: 6. 显示授权确认页面
-    User->>SSO: 7. 确认授权
-    SSO->>App: 8. 302 重定向到 myapp://callback?code=AUTH_CODE&state=xxx
+    App->>统一认证: 3. 打开系统浏览器访问<br/>GET /oauth2/authorize?<br/>  response_type=code&<br/>  client_id=xxx&<br/>  redirect_uri=myapp://callback&<br/>  code_challenge=CHALLENGE&<br/>  code_challenge_method=S256&<br/>  state=随机字符串
+    统一认证->>User: 4. 显示登录页面
+    User->>统一认证: 5. 输入凭据登录
+    统一认证->>User: 6. 显示授权确认页面
+    User->>统一认证: 7. 确认授权
+    统一认证->>App: 8. 302 重定向到 myapp://callback?code=AUTH_CODE&state=xxx
     App->>App: 9. 校验 state
-    App->>SSO: 10. POST /oauth2/token<br/>grant_type=authorization_code&<br/>code=AUTH_CODE&<br/>client_id=xxx&<br/>code_verifier=VERIFIER&<br/>redirect_uri=myapp://callback
-    Note over App,SSO: 不需要 client_secret
-    SSO->>App: 11. 返回 {access_token, id_token, refresh_token}
+    App->>统一认证: 10. POST /oauth2/token<br/>grant_type=authorization_code&<br/>code=AUTH_CODE&<br/>client_id=xxx&<br/>code_verifier=VERIFIER&<br/>redirect_uri=myapp://callback
+    Note over App,统一认证: 不需要 client_secret
+    统一认证->>App: 11. 返回 {access_token, id_token, refresh_token}
     App->>App: 12. 验证 ID Token，保存令牌
     App->>User: 13. 进入已登录状态
 ```
@@ -472,25 +475,25 @@ sequenceDiagram
     actor User as 用户
     participant Device as 设备（TV/CLI/物联网）
     participant Phone as 用户手机/电脑
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
-    Device->>SSO: 1. POST /oauth2/device_authorization<br/>client_id=xxx&scope=openid profile
-    SSO->>Device: 2. 返回 {device_code, user_code, verification_uri, expires_in}
+    Device->>统一认证: 1. POST /oauth2/device_authorization<br/>client_id=xxx&scope=openid profile
+    统一认证->>Device: 2. 返回 {device_code, user_code, verification_uri, expires_in}
     Device->>User: 3. 展示 user_code 和验证地址<br/>"请在浏览器打开 http://xxx 输入 XYZ-ABCD"
     User->>Phone: 4. 打开验证地址
-    Phone->>SSO: 5. GET /activate?user_code=XYZ-ABCD
-    SSO->>Phone: 6. 若未登录，显示登录页面
-    User->>SSO: 7. 输入凭据登录
-    SSO->>Phone: 8. 显示确认页面
-    User->>SSO: 9. 确认授权
-    SSO->>Phone: 10. 显示"授权成功"
+    Phone->>统一认证: 5. GET /activate?user_code=XYZ-ABCD
+    统一认证->>Phone: 6. 若未登录，显示登录页面
+    User->>统一认证: 7. 输入凭据登录
+    统一认证->>Phone: 8. 显示确认页面
+    User->>统一认证: 9. 确认授权
+    统一认证->>Phone: 10. 显示"授权成功"
 
     loop 轮询令牌（间隔 >= 5s）
-        Device->>SSO: 11. POST /oauth2/token<br/>grant_type=urn:ietf:params:oauth:grant-type:device_code&<br/>device_code=DEVICE_CODE&<br/>client_id=xxx
+        Device->>统一认证: 11. POST /oauth2/token<br/>grant_type=urn:ietf:params:oauth:grant-type:device_code&<br/>device_code=DEVICE_CODE&<br/>client_id=xxx
         alt 用户尚未确认
-            SSO->>Device: {error: "authorization_pending"}
+            统一认证->>Device: {error: "authorization_pending"}
         else 用户已确认
-            SSO->>Device: 12. 返回 {access_token, refresh_token}
+            统一认证->>Device: 12. 返回 {access_token, refresh_token}
         end
     end
 
@@ -573,12 +576,12 @@ grant_type=urn:ietf:params:oauth:grant-type:device_code
 sequenceDiagram
     actor User as 用户
     participant App as 你的应用
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>App: 1. 输入用户名和密码
-    App->>SSO: 2. POST /oauth2/token<br/>grant_type=password&<br/>username=admin&<br/>password=123456&<br/>client_id=xxx&<br/>client_secret=xxx&<br/>scope=openid profile
-    SSO->>SSO: 3. 验证客户端凭据<br/>验证用户名密码<br/>创建用户会话
-    SSO->>App: 4. 返回 {access_token, refresh_token, id_token}
+    App->>统一认证: 2. POST /oauth2/token<br/>grant_type=password&<br/>username=admin&<br/>password=123456&<br/>client_id=xxx&<br/>client_secret=xxx&<br/>scope=openid profile
+    统一认证->>统一认证: 3. 验证客户端凭据<br/>验证用户名密码<br/>创建用户会话
+    统一认证->>App: 4. 返回 {access_token, refresh_token, id_token}
     App->>App: 5. 保存令牌，建立本地会话
     App->>User: 6. 登录成功
 ```
@@ -603,7 +606,7 @@ grant_type=password
 
 ---
 
-### 方式五：手机验证码登录（Phone / SMS）
+### 方式五：手机验证码登录（Phone / SMS）<br>*（Duca 自定义授权模式，非 OAuth 2.0 标准 grant_type）*
 
 **适用场景**：App 或 H5 页面，用户通过手机号 + 短信验证码登录。
 
@@ -613,15 +616,15 @@ grant_type=password
 sequenceDiagram
     actor User as 用户
     participant App as 你的应用
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>App: 1. 输入手机号，点击"获取验证码"
-    App->>SSO: 2. POST /duca/sendCode<br/>phone=138xxxx1234&type=login
-    SSO->>User: 3. 发送短信验证码
+    App->>统一认证: 2. POST /duca/sendCode<br/>phone=138xxxx1234&type=login
+    统一认证->>User: 3. 发送短信验证码
     User->>App: 4. 输入验证码，点击"登录"
-    App->>SSO: 5. POST /oauth2/token<br/>grant_type=phone&<br/>phone=138xxxx1234&<br/>code=123456&<br/>client_id=xxx&<br/>client_secret=xxx
-    SSO->>SSO: 6. 验证验证码<br/>创建用户会话
-    SSO->>App: 7. 返回 {access_token, refresh_token, id_token}
+    App->>统一认证: 5. POST /oauth2/token<br/>grant_type=phone&<br/>phone=138xxxx1234&<br/>code=123456&<br/>client_id=xxx&<br/>client_secret=xxx
+    统一认证->>统一认证: 6. 验证验证码<br/>创建用户会话
+    统一认证->>App: 7. 返回 {access_token, refresh_token, id_token}
     App->>User: 8. 登录成功
 ```
 
@@ -651,7 +654,7 @@ grant_type=phone
 
 ---
 
-### 方式六：微信（pc扫码/服务号授权）登录
+### 方式六：微信（pc扫码/服务号授权）登录<br>*（Duca 自定义授权模式，grant_type=uuid，非 OAuth 2.0 标准 grant_type）*
 
 **适用场景**：PC Web 端，用户通过微信扫描二维码登录，微信内打开自动授权登录
 
@@ -662,34 +665,34 @@ sequenceDiagram
     actor User as 用户
     participant Browser as PC 浏览器
     participant App as 你的应用后端
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
     participant WeChat as 微信服务
 
     User->>Browser: 1. 访问登录页面
     Browser->>App: GET /login
-    App->>SSO: 2. 获取微信登录参数<br/>GET /duca/wechat/qrcode?client_id=xxx
-    SSO->>WeChat: 3. 请求生成临时 QR 场景值
-    WeChat->>SSO: 4. 返回 ticket + 场景值
-    SSO->>App: 5. 返回 {qrcode_url, state, uuid}
+    App->>统一认证: 2. 获取微信登录参数<br/>GET /duca/wechat/qrcode?client_id=xxx
+    统一认证->>WeChat: 3. 请求生成临时 QR 场景值
+    WeChat->>统一认证: 4. 返回 ticket + 场景值
+    统一认证->>App: 5. 返回 {qrcode_url, state, uuid}
     App->>Browser: 6. 渲染二维码（qrcode_url）
     Browser->>User: 7. 显示二维码 + "请用微信扫码"
 
     User->>WeChat: 8. 打开微信扫描二维码
     WeChat->>User: 9. 弹出确认页面
     User->>WeChat: 10. 点击"确认登录"
-    WeChat->>SSO: 11. 回调，通知场景值 + openId
-    SSO->>SSO: 12. 根据 openId 查找/创建用户<br/>创建会话并关联 state
+    WeChat->>统一认证: 11. 回调，通知场景值 + openId
+    统一认证->>统一认证: 12. 根据 openId 查找/创建用户<br/>创建会话并关联 state
 
     loop 前端轮询
         Browser->>App: 13. GET /duca/wechat/status?uuid=xxx&state=xxx
-        App->>SSO: 转发轮询请求
-        SSO->>App: 14. 返回状态（waiting / success / expired）
+        App->>统一认证: 转发轮询请求
+        统一认证->>App: 14. 返回状态（waiting / success / expired）
         App->>Browser: 返回状态
     end
 
     Browser->>App: 15. 轮询到 success，获取 token
-    App->>SSO: POST /oauth2/token<br/>grant_type=uuid&uuid=xxx
-    SSO->>App: 16. 返回 {access_token, refresh_token, id_token}
+    App->>统一认证: POST /oauth2/token<br/>grant_type=uuid&uuid=xxx
+    统一认证->>App: 16. 返回 {access_token, refresh_token, id_token}
     App->>Browser: 17. 登录成功，跳转到主页
 ```
 
@@ -732,7 +735,7 @@ grant_type=uuid
 
 ---
 
-### 方式七：企业微信扫码登录
+### 方式七：企业微信扫码登录<br>*（Duca 自定义授权模式，grant_type=uuid，非 OAuth 2.0 标准 grant_type）*
 
 **适用场景**：企业内部应用，员工通过企业微信扫码登录。
 
@@ -747,32 +750,32 @@ sequenceDiagram
     actor User as 员工
     participant Browser as PC 浏览器
     participant App as 你的应用后端
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
     participant WorkWx as 企业微信服务
 
     User->>Browser: 1. 访问登录页面
     Browser->>App: GET /login
-    App->>SSO: 2. GET /duca/workwx/qrcode?client_id=xxx
-    SSO->>WorkWx: 3. 请求生成企业微信临时场景值
-    WorkWx->>SSO: 4. 返回 ticket
-    SSO->>App: 5. 返回 {qrcode_url, state, uuid}
+    App->>统一认证: 2. GET /duca/workwx/qrcode?client_id=xxx
+    统一认证->>WorkWx: 3. 请求生成企业微信临时场景值
+    WorkWx->>统一认证: 4. 返回 ticket
+    统一认证->>App: 5. 返回 {qrcode_url, state, uuid}
     App->>Browser: 6. 渲染企业微信二维码
     Browser->>User: 7. 显示二维码
 
     User->>WorkWx: 8. 打开企业微信扫码
     WorkWx->>User: 9. 弹出确认页面
     User->>WorkWx: 10. 确认登录
-    WorkWx->>SSO: 11. 回调通知 userId
+    WorkWx->>统一认证: 11. 回调通知 userId
 
     loop 前端轮询
         Browser->>App: 12. GET /duca/workwx/status?uuid=xxx&state=xxx
-        App->>SSO: 转发轮询
-        SSO->>App: 13. 返回状态
+        App->>统一认证: 转发轮询
+        统一认证->>App: 13. 返回状态
     end
 
     Browser->>App: 14. 轮询到 success
-    App->>SSO: 15. POST /oauth2/token<br/>grant_type=uuid&uuid=xxx
-    SSO->>App: 16. 返回令牌
+    App->>统一认证: 15. POST /oauth2/token<br/>grant_type=uuid&uuid=xxx
+    统一认证->>App: 16. 返回令牌
     App->>Browser: 17. 登录成功
 ```
 
@@ -797,11 +800,11 @@ grant_type=uuid
 
 ---
 
-### 方式八：第三方 UID 登录
+### 方式八：第三方 UID 登录<br>*（Duca 自定义授权模式，grant_type=thirdUid，非 OAuth 2.0 标准 grant_type）*
 
-**适用场景**：已经拥有独立用户体系的外部系统，通过已有的用户 ID 直接换取 SSO 令牌。
+**适用场景**：已经拥有独立用户体系的外部系统，通过已有的用户 ID 直接换取 统一认证 令牌。
 
-> **注意**：此方式需要 SSO 平台预先建立 UID ↔ DMS 用户的映射关系。
+> **注意**：此方式需要 统一认证 平台预先建立 UID ↔ DMS 用户的映射关系。
 
 #### 流程图
 
@@ -810,15 +813,15 @@ sequenceDiagram
     actor User as 用户
     participant ThirdParty as 第三方系统
     participant App as 你的应用
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>ThirdParty: 1. 在第三方系统完成登录
     ThirdParty->>ThirdParty: 2. 验证用户身份
     Note over ThirdParty: 用户已有 thirdUserId
     ThirdParty->>App: 3. 通知登录成功（携带 thirdUserId）
-    App->>SSO: 4. POST /oauth2/token<br/>grant_type=thirdUid&<br/>thirdUserId=xxx&<br/>client_id=xxx&<br/>client_secret=xxx
-    SSO->>SSO: 5. 查找 uid → DMS 用户映射<br/>创建 SSO 会话
-    SSO->>App: 6. 返回 {access_token, refresh_token, id_token}
+    App->>统一认证: 4. POST /oauth2/token<br/>grant_type=thirdUid&<br/>thirdUserId=xxx&<br/>client_id=xxx&<br/>client_secret=xxx
+    统一认证->>统一认证: 5. 查找 uid → DMS 用户映射<br/>创建 统一认证 会话
+    统一认证->>App: 6. 返回 {access_token, refresh_token, id_token}
     App->>User: 7. 登录成功
 ```
 
@@ -844,7 +847,7 @@ grant_type=thirdUid
 - 将 Access Token 绑定到客户端持有的非对称密钥
 - 每次请求携带一个 DPoP Proof JWT，证明你是令牌的合法持有者
 - 即使令牌被窃取，攻击者没有私钥也无法使用
-- 支持的签名算法：`RS256`、`RS384`
+- 支持的签名算法（来自 `dpop_signing_alg_values_supported`）：`RS256`、`RS384`、`RS512`、`PS256`、`PS384`、`PS512`、`ES256`、`ES384`、`ES512`
 
 **工作原理**：DPoP 不是一种独立的授权方式，而是对所有授权方式的安全增强。在获取令牌和使用令牌时，都需要提供 DPoP Proof。
 
@@ -853,15 +856,15 @@ grant_type=thirdUid
 ```mermaid
 sequenceDiagram
     participant App as 你的应用
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
     participant API as 资源 API
 
     Note over App: 1. 生成 DPoP 密钥对（RSA）
     App->>App: 2. 公钥包含在 DPoP Proof JWT 中
 
-    App->>SSO: 3. POST /oauth2/token<br/>Authorization: Bearer ...<br/>DPoP: {dpop_proof_jwt}<br/>grant_type=authorization_code&code=xxx
-    Note over SSO: 4. 验证 DPoP Proof JWT<br/>提取公钥的 JWK Thumbprint<br/>将公钥指纹绑定到 access_token
-    SSO->>App: 5. 返回 access_token（绑定了 DPoP 公钥）
+    App->>统一认证: 3. POST /oauth2/token<br/>Authorization: Bearer ...<br/>DPoP: {dpop_proof_jwt}<br/>grant_type=authorization_code&code=xxx
+    Note over 统一认证: 4. 验证 DPoP Proof JWT<br/>提取公钥的 JWK Thumbprint<br/>将公钥指纹绑定到 access_token
+    统一认证->>App: 5. 返回 access_token（绑定了 DPoP 公钥）
 
     App->>API: 6. GET /api/resource<br/>Authorization: Bearer {access_token}<br/>DPoP: {新的 dpop_proof_jwt}
     Note over API: 7. 验证 DPoP Proof JWT 签名<br/>比对公钥指纹与令牌绑定的指纹<br/>校验 htm（HTTP 方法）、htu（请求 URI）
@@ -894,7 +897,7 @@ sequenceDiagram
 
 | 字段 | 说明 |
 |------|------|
-| `jti` | 唯一 ID，SSO 会缓存避免重放 |
+| `jti` | 唯一 ID，统一认证 会缓存避免重放 |
 | `htm` | 当前 HTTP 请求方法（GET/POST 等） |
 | `htu` | 当前请求的完整 URI（不含查询参数） |
 | `iat` | 签发时间 |
@@ -938,7 +941,7 @@ DPoP: eyJhbGciOiJSUzI1NiIsInR5cCI6ImRwb3Arand0IiwiandrIjp7...
 **适用场景**：授权请求参数过多导致 URL 长度超限；需要在重定向前预检授权请求合法性；移动端需要提前完成授权准备。
 
 **核心特点**：
-- 将授权参数通过**后端 POST 请求**推送到 SSO 平台，获取一个短的 `request_uri`
+- 将授权参数通过**后端 POST 请求**推送到 统一认证 平台，获取一个短的 `request_uri`
 - 然后重定向用户浏览器到授权端点，只携带 `client_id` 和 `request_uri`
 - 大幅缩短浏览器地址栏 URL，避免参数泄露
 - 可在用户被重定向前预检请求的合法性
@@ -950,28 +953,28 @@ sequenceDiagram
     actor User as 用户
     participant App as 你的应用（后端）
     participant Browser as 浏览器
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>Browser: 1. 点击"登录"
     Browser->>App: 2. GET /login
-    App->>SSO: 3. POST /oauth2/par<br/>(后端直接请求，不经浏览器)<br/>Authorization: Basic base64(client_id:client_secret)<br/>response_type=code&<br/>client_id=xxx&<br/>redirect_uri=https://myapp.com/callback&<br/>scope=openid profile&<br/>state=随机字符串&<br/>nonce=随机字符串&<br/>code_challenge=xxx&<br/>code_challenge_method=S256
-    SSO->>SSO: 4. 校验所有参数合法性
-    SSO->>App: 5. 返回 {request_uri, expires_in}
+    App->>统一认证: 3. POST /oauth2/par<br/>(后端直接请求，不经浏览器)<br/>Authorization: Basic base64(client_id:client_secret)<br/>response_type=code&<br/>client_id=xxx&<br/>redirect_uri=https://myapp.com/callback&<br/>scope=openid profile&<br/>state=随机字符串&<br/>nonce=随机字符串&<br/>code_challenge=xxx&<br/>code_challenge_method=S256
+    统一认证->>统一认证: 4. 校验所有参数合法性
+    统一认证->>App: 5. 返回 {request_uri, expires_in}
     Note over App: request_uri = "urn:ietf:params:oauth:request_uri:AbC123"
     App->>Browser: 6. 302 重定向，只携带短参数<br/>GET /oauth2/authorize?<br/>  client_id=xxx&<br/>  request_uri=urn:ietf:params:oauth:request_uri:AbC123
-    Browser->>SSO: 7. 浏览器访问授权端点
-    SSO->>SSO: 8. 用 request_uri 取回之前推送的参数
-    SSO->>Browser: 9. 显示登录页面
-    User->>SSO: 10. 输入凭据登录
-    SSO->>Browser: 11. 显示授权确认页面
-    User->>SSO: 12. 确认授权
-    SSO->>Browser: 13. 302 重定向到 redirect_uri?code=AUTH_CODE
+    Browser->>统一认证: 7. 浏览器访问授权端点
+    统一认证->>统一认证: 8. 用 request_uri 取回之前推送的参数
+    统一认证->>Browser: 9. 显示登录页面
+    User->>统一认证: 10. 输入凭据登录
+    统一认证->>Browser: 11. 显示授权确认页面
+    User->>统一认证: 12. 确认授权
+    统一认证->>Browser: 13. 302 重定向到 redirect_uri?code=AUTH_CODE
     Browser->>App: 14. 回调，后续流程同方式一/二
 ```
 
 #### 步骤详解
 
-**Step 1 — 推送授权参数到 SSO**
+**Step 1 — 推送授权参数到 统一认证**
 
 ```http
 POST {issuer}/oauth2/par
@@ -1093,18 +1096,18 @@ sequenceDiagram
     actor User as 用户
     participant Gateway as API 网关
     participant OrderSvc as 订单服务
-    participant SSO as SSO 平台
+    participant 统一认证 as 统一认证 平台
 
     User->>Gateway: 1. 登录，获得 access_token<br/>(aud=gateway, scope=openid profile)
     User->>Gateway: 2. POST /api/orders<br/>Authorization: Bearer {access_token}
 
     Note over Gateway: 需要调用订单服务，但令牌 aud 是 gateway
 
-    Gateway->>SSO: 3. POST /oauth2/token<br/>Authorization: Basic base64(gateway_id:secret)<br/>grant_type=token-exchange<br/>subject_token={用户的access_token}<br/>subject_token_type=access_token<br/>requested_token_type=access_token<br/>audience=order-service<br/>scope=openid profile
+    Gateway->>统一认证: 3. POST /oauth2/token<br/>Authorization: Basic base64(gateway_id:secret)<br/>grant_type=token-exchange<br/>subject_token={用户的access_token}<br/>subject_token_type=access_token<br/>requested_token_type=access_token<br/>audience=order-service<br/>scope=openid profile
 
-    SSO->>SSO: 4. 验证原令牌 + 网关权限<br/>生成新令牌（aud=order-service）
+    统一认证->>统一认证: 4. 验证原令牌 + 网关权限<br/>生成新令牌（aud=order-service）
 
-    SSO->>Gateway: 5. 返回新 access_token<br/>(aud=order-service, sub=用户, act=gateway)
+    统一认证->>Gateway: 5. 返回新 access_token<br/>(aud=order-service, sub=用户, act=gateway)
 
     Gateway->>OrderSvc: 6. POST /api/orders<br/>Authorization: Bearer {新令牌}
     OrderSvc->>OrderSvc: 7. 验证令牌 aud=order-service
@@ -1140,7 +1143,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 | 参数 | 必填 | 说明                                                        |
 |------|:--:|-----------------------------------------------------------|
 | `grant_type` | 是 | 固定值 `urn:ietf:params:oauth:grant-type:token-exchange`     |
-| `subject_token` | 是 | 当前持有的令牌（要被交换的原令牌），只能通过授权码模式、推送授权模式/par 或者设备授权码模式获取        |
+| `subject_token` | 是 | 当前持有的令牌（要被交换的原令牌）。**平台约束**：根据 RFC 8693 标准，Token Exchange 本身不限制 `subject_token` 来源；Duca 平台当前仅接受通过授权码模式、推送授权模式（PAR）或设备授权码模式获取的令牌 |
 | `subject_token_type` | 是 | 原令牌类型，通常是 `urn:ietf:params:oauth:token-type:access_token` |
 | `requested_token_type` | 否 | 想要换到的令牌类型，默认同 `subject_token_type`                        |
 | `audience` | 推荐 | 目标服务的 `client_id`，新令牌的 `aud` 声明指向它                        |
@@ -1237,6 +1240,7 @@ token={access_token}
 
 - `active: true` — 令牌有效
 - `active: false` — 令牌无效或已过期
+- `sid` — Duca 自定义扩展字段，非 RFC 7662 标准 introspection 响应字段，用于标识用户登录会话
 
 ### 4.4 撤销令牌
 
@@ -1295,7 +1299,7 @@ Payload 为 Base64URL 编码的 JSON，解码后得到:
 }
 ```
 
-> **重要**：从 ID Token 获取用户信息前，必须先验证签名和过期时间。
+ **重要**：从 ID Token 获取用户信息前，必须先验证签名和过期时间。此外，ID Token 主要用于**身份认证**（确认"用户是谁"），详细的用户资料（如 phone、email 等）应以 **UserInfo 端点**为准，因其可返回更完整且时效性更强的声明集。
 
 ---
  
@@ -1311,7 +1315,7 @@ Payload 为 Base64URL 编码的 JSON，解码后得到:
 | 6 | 实现 ID Token 验证 | 用 JWKS 公钥验签，校验 iss/aud/exp |
 | 7 | 实现令牌刷新 | Access Token 过期时用 Refresh Token 续期 |
 | 8 | 实现单点退出 | 退出时调用 `/connect/logout` |
-| 9 | 实现 Back-Channel 接收 | 可选，接收来自 SSO 的退出通知 |
+| 9 | 实现 Back-Channel 接收 | 可选，接收来自 统一认证 的退出通知 |
 | 10 | 通过服务发现获取端点 | 使用 `/.well-known/{client_id}/openid-configuration` |
 
 ---

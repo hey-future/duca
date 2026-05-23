@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
@@ -273,7 +274,7 @@ public class DucaApiService {
                 ? new HttpEntity<>(requestBody, headers)
                 : new HttpEntity<>(headers);
             return restTemplate.exchange(url, httpMethod, entity, Map.class);
-        } catch (HttpClientErrorException e) {
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
             return ResponseEntity.status(e.getStatusCode())
                 .body(Map.of("error", e.getStatusText(),
                     "error_description", e.getResponseBodyAsString()));
