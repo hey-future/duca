@@ -250,12 +250,22 @@
         }
         .openapi-response-body.error { border-left: 3px solid var(--error); }
         .openapi-response-body.success { border-left: 3px solid var(--success); }
+
+        /* ─── 登录页样式自定义 ─── */
+        .login-css-code {
+            background: #1e1e1e; color: #d4d4d4;
+            padding: 20px; border-radius: 6px;
+            font-size: 13px; line-height: 1.7;
+            overflow: auto; max-height: calc(100vh - 250px);
+            white-space: pre-wrap; word-break: break-all;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h1>DUCA SSO 客户端演示面板</h1>
+    <h1>DUCA SSO 客户端演示面板<front color="red">(供参考,以实际业务需求为准）</front></h1>
     <div class="user-tag">
         <span th:if="${user}" th:text="'用户: ' + ${user.fullName}">用户</span>
         <form th:action="@{/logout}" method="post" style="margin:0;">
@@ -285,6 +295,8 @@
         <button class="tab-btn" data-tab="tab-dpop">DPoP</button>
         <button class="tab-btn" data-tab="tab-logout">统一退出</button>
         <button class="tab-btn" data-tab="tab-openapi">Open API</button>
+        <button class="tab-btn" data-tab="tab-profile">个人中心</button>
+        <button class="tab-btn" data-tab="tab-login-page">登录页自定义</button>
     </div>
 
     <!-- ═══ Tab 0: Overview ═══ -->
@@ -781,6 +793,157 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- ═══ Tab 个人中心 ═══ -->
+    <div class="tab-panel" id="tab-profile">
+        <iframe src="https://ducafront.multimediapress.cn/oauth/profile"
+                style="width:100%;height:calc(100vh - 160px);border:none;border-radius:8px;">
+        </iframe>
+    </div>
+
+    <!-- ═══ Tab 登录页样式自定义 ═══ -->
+    <div class="tab-panel" id="tab-login-page">
+        <div class="card">
+            <h3>自定义登录页样式配置</h3>
+            <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+
+            </p>
+            <pre class="login-css-code"><code>/*
+ * DUCA 登录页自定义样式
+ * ── 页面结构──
+ *   div.wapper
+ *     div.login-panel-container           — 居中登录面板容器
+ *       div.login-panel                   — 登录卡片 flex 布局
+ *         div.banner                      — 左侧品牌展示区 50%
+ *           img.banner-background         — 品牌背景图
+ *         div.login-box                   — 右侧登录表单区 50%
+ *           div.login-title               — 标题"统一用户认证引擎"
+ *           div.login-type-menu           — 登录方式切换菜单
+ *             div.login-item              — 密码登录/验证码登录 tab
+ *             div.login-item.select       — 当前选中 tab
+ *           div.form-container            — 登录表单
+ *           div.auto-login-panel          — "下次自动登录"+找回/重置密码
+ *             span.reset-password-wrap    — 找回密码/重置密码链接
+ *           button.login-btn              — 登录按钮
+ *           div.other-login-panel         — 第三方登录方式
+ *             div.login-item              — 微信/企业微信入口
+ *               svg-icon                  — 第三方登录图标
+ *               span                      — 第三方登录文字 (
+ */
+
+/* ─── 1. Banner 背景图 ───────────────────────────────────
+ *  &lt;div class="banner"&gt;&lt;img class="banner-background"&gt;
+ *  .banner { background-color: $main-color; }
+ * 隐藏 &lt;img&gt; 标签，改用 CSS background-image 替换品牌背景 */
+.banner img {
+  display: none;
+}
+
+.login-panel-container .login-panel .banner {
+  background-image: url('https://oucp.multimediapress.cn//images/1/2026/05/21/b6785f3a-827c-4f21-9040-c50db8d22ef0.png');
+  background-size: 100% 100%;
+  background-color: #fff;
+}
+
+/* ─── 2. 登录标题 ───────────────────────────────────────
+ *  &lt;div class="login-title"&gt;统一用户认证引擎&lt;/div&gt;
+ *  黑色加粗字体
+ * 白色标题文字 + 伪元素叠加副标题"智慧纸书登录" */
+.login-title {
+  color: #fff;
+  position: relative;
+}
+
+.login-title:after {
+  content: '智慧纸书登录';
+  color: #415668;
+  font-size: 38px;
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  left: 0;
+  top: -20px;
+}
+
+/* ─── 3. 登录方式切换菜单 ────────────────────────────────
+ * .login-type-menu > .login-item (密码登录 / 验证码登录)
+ *  横向 tab 按钮，选中态蓝色背景圆角块
+ * 改为：居中排列 + 选中态底部蓝色短横线 + 透明背景 */
+
+.login-box .login-type-menu {
+  text-align: center;
+}
+
+/* 选中 tab：透明背景 + 蓝色文字 (class="{select: loginType===0}") */
+.login-box .login-type-menu .login-item.select {
+  background-color: transparent;
+  color: #0b82ff;
+}
+
+/* 选中态底部短横线指示器 (2em 宽 × 2px 高，水平居中) */
+.login-box .login-type-menu .login-item.select::after {
+  content: '';
+  position: absolute;
+  bottom: 0px;
+  width: 2em;
+  height: 2px;
+  background-color: #0b82ff;
+  left: 50%;
+  margin-left: -1em;
+}
+
+/* 默认 tab：灰色文字 + 相对定位（为 ::after 指示器提供定位参考） */
+.login-box .login-type-menu .login-item {
+  color: #999;
+  position: relative;
+}
+
+/* ─── 4. 登录按钮 ───────────────────────────────────────
+ *  button.login-btn (type="primary")
+ * 主色调按钮，100%宽度
+ * 覆盖为品牌蓝色 #0b82ff */
+.login-box .login-btn {
+  background-color: #0b82ff;
+  border-color: #0b82ff;
+}
+
+/* ─── 5. "找回密码" / "重置密码" 链接颜色 ──────────────────
+ *  .auto-login-panel > .reset-password-wrap
+ *   &lt;span class="find-password"&gt;找回密码&lt;/span&gt;
+ *   &lt;span class="reset-password"&gt;重置密码&lt;/span&gt;
+ * 主色调链接颜色 */
+.login-box .auto-login-panel .reset-password-wrap {
+  color: #0b82ff;
+}
+
+/* ─── 6. 第三方登录方式 ──────────────────────────────────
+ *  .other-login-panel > .login-item
+ *   (微信登录 / 企业微信登录入口)
+ *  横向排列图标+文字，圆角背景块
+ * 改为：纵向排列(图标上+文字下)，透明背景，120px 固定宽度居中 */
+
+.login-box .other-login-panel .login-item {
+  background: transparent;
+  flex-direction: column;
+  gap: 8px;
+  text-align: center;
+  width: 120px;
+  margin: 0 auto;
+}
+
+/* 第三方登录文字：去掉左边距，缩小字号 ( &lt;span&gt;微信登录&lt;/span&gt;) */
+.login-box .other-login-panel .login-item span {
+  margin-left: 0;
+  font-size: 12px;
+}
+
+/* 第三方登录图标：放大到 40×40 ( &lt;svg-icon icon-class="weixin"&gt;) */
+.login-box .other-login-panel .login-item .svg-icon {
+  width: 40px;
+  height: 40px;
+}</code></pre>
         </div>
     </div>
 
