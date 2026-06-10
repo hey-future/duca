@@ -221,12 +221,13 @@
 
 **请求Query参数**
 
-| 参数名 | 示例值 | 参数类型 | 是否必填 | 参数描述 |
-| --- | --- | ---- | ---- | ---- |
-| response_type | code | string | 是 | 响应类型，固定为code（授权码模式） |
-| client_id | {{clientId}} | string | 是 | 客户端ID/应用编号 |
-| scope | openid | string | 是 | 请求的授权范围，多个scope用空格分隔 |
-| redirect_uri | http://localhost:8187/duca/callback | string | 是 | 回调地址 |
+| 参数名 | 示例值 | 参数类型 | 是否必填 | 参数描述                                                                                       |
+| --- | --- | ---- | ---- |--------------------------------------------------------------------------------------------|
+| response_type | code | string | 是 | 响应类型，固定为code（授权码模式）                                                                        |
+| client_id | {{clientId}} | string | 是 | 客户端ID/应用编号                                                                                 |
+| scope | openid | string | 是 | 请求的授权范围，多个scope用空格分隔                                                                       |
+| redirect_uri | http://localhost:8187/duca/callback | string | 是 | 回调地址                                                                                       |
+ |flag|login|string |否| <b>flag=login,在<font color='red'>微信内</font>访问/oauth2/authorize 会跳转到统一认证登录页，否则会自动微信授权登录</b> |
 
 
 **响应示例**
